@@ -1,0 +1,11 @@
+# Build output and per-user runtime files
+build/
+
+# Local development notes (not part of the public project)
+AGENTS.md
+PROJECT_MEMORY.md
+WORK_LOG.md
+
+# Windows
+Thumbs.db
+desktop.ini
