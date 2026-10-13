@@ -11,7 +11,7 @@ using System.Threading;
 using System.Windows.Forms;
 using Microsoft.Win32.SafeHandles;
 
-namespace MXMasterPortable
+namespace MXMasterWIN
 {
     internal static class Program
     {
@@ -29,6 +29,8 @@ namespace MXMasterPortable
             // Two instances would fight over the global mouse hook and HID++ requests.
             // A second launch only asks the running one to show its window.
             bool createdNew;
+            // The mutex and window message keep the pre-2.0 name so that an old MX Master Portable
+            // copy and this one still count as the same app.
             using (var mutex = new Mutex(true, @"Local\MXMasterPortable.SingleInstance", out createdNew))
             {
                 if (!createdNew)
@@ -36,7 +38,15 @@ namespace MXMasterPortable
                     PostMessage(new IntPtr(0xFFFF), ShowWindowMessage, IntPtr.Zero, IntPtr.Zero);
                     return;
                 }
-                Lang.Load(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "mxmaster-portable.ini"));
+                string configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "mxmaster-win.ini");
+                // Up to 1.1 the app was called MX Master Portable; carry its settings file over once.
+                try
+                {
+                    string oldConfigPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "mxmaster-portable.ini");
+                    if (!File.Exists(configPath) && File.Exists(oldConfigPath)) File.Move(oldConfigPath, configPath);
+                }
+                catch { }
+                Lang.Load(configPath);
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
                 Application.Run(new MainForm());
@@ -50,7 +60,7 @@ namespace MXMasterPortable
             }
         }
 
-        internal const string Version = "1.1";
+        internal const string Version = "2.0";
 
         // Set before closing the main window to start the app again (used after a language change).
         internal static bool RestartRequested;
@@ -861,6 +871,177 @@ namespace MXMasterPortable
         }
     }
 
+    // Optional start with Windows: a plain shortcut in the user's own Startup folder. It needs no
+    // administrator rights, touches no registry key, and the user can see and delete it.
+    internal static class StartupShortcut
+    {
+        private static string LinkPath
+        {
+            get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup), "MX Master WIN.lnk"); }
+        }
+
+        // The shortcut written by versions before 2.0 (MX Master Portable).
+        private static string OldLinkPath
+        {
+            get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup), "MX Master Portable.lnk"); }
+        }
+
+        public static bool Exists
+        {
+            get
+            {
+                try { return File.Exists(LinkPath) || File.Exists(OldLinkPath); }
+                catch { return false; }
+            }
+        }
+
+        // Writes (or rewrites) the shortcut so that it points at the EXE that is running now.
+        public static bool Create(out string error)
+        {
+            error = "";
+            object link = null;
+            try
+            {
+                string exe = Application.ExecutablePath;
+                link = new ShellLink();
+                var shell = (IShellLinkW)link;
+                shell.SetPath(exe);
+                shell.SetWorkingDirectory(Path.GetDirectoryName(exe));
+                shell.SetDescription("MX Master WIN");
+                shell.SetIconLocation(exe, 0);
+                ((System.Runtime.InteropServices.ComTypes.IPersistFile)link).Save(LinkPath, false);
+                if (File.Exists(OldLinkPath)) File.Delete(OldLinkPath);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+            finally
+            {
+                if (link != null) Marshal.ReleaseComObject(link);
+            }
+        }
+
+        public static bool Remove(out string error)
+        {
+            error = "";
+            try
+            {
+                if (File.Exists(LinkPath)) File.Delete(LinkPath);
+                if (File.Exists(OldLinkPath)) File.Delete(OldLinkPath);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+        }
+
+        [ComImport, Guid("00021401-0000-0000-C000-000000000046")]
+        private class ShellLink { }
+
+        // Only the vtable order matters here; the getters are declared just to keep the slots in place.
+        [ComImport, InterfaceType(ComInterfaceType.InterfaceIsIUnknown), Guid("000214F9-0000-0000-C000-000000000046")]
+        private interface IShellLinkW
+        {
+            void GetPath([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder file, int length, IntPtr findData, int flags);
+            void GetIDList(out IntPtr idList);
+            void SetIDList(IntPtr idList);
+            void GetDescription([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder name, int length);
+            void SetDescription([MarshalAs(UnmanagedType.LPWStr)] string name);
+            void GetWorkingDirectory([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder directory, int length);
+            void SetWorkingDirectory([MarshalAs(UnmanagedType.LPWStr)] string directory);
+            void GetArguments([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder arguments, int length);
+            void SetArguments([MarshalAs(UnmanagedType.LPWStr)] string arguments);
+            void GetHotkey(out short hotkey);
+            void SetHotkey(short hotkey);
+            void GetShowCmd(out int showCommand);
+            void SetShowCmd(int showCommand);
+            void GetIconLocation([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder iconPath, int length, out int icon);
+            void SetIconLocation([MarshalAs(UnmanagedType.LPWStr)] string iconPath, int icon);
+            void SetRelativePath([MarshalAs(UnmanagedType.LPWStr)] string relativePath, int reserved);
+            void Resolve(IntPtr window, int flags);
+            void SetPath([MarshalAs(UnmanagedType.LPWStr)] string file);
+        }
+    }
+
+    // Lets the user pick the action for each of the four gesture directions.
+    internal sealed class GestureDialog : Form
+    {
+        private readonly ActionPicker[] pickers = new ActionPicker[4];
+
+        // Up, right, down, left.
+        public static ActionBinding[] Defaults()
+        {
+            return new[]
+            {
+                ActionBinding.Of(MappedAction.TaskView), ActionBinding.Of(MappedAction.BrowserForward),
+                ActionBinding.Of(MappedAction.ShowDesktop), ActionBinding.Of(MappedAction.BrowserBack)
+            };
+        }
+
+        private GestureDialog(ActionBinding[] current)
+        {
+            float scale = Theme.GetScale();
+            Func<int, int> s = delegate(int v) { return (int)Math.Round(v * scale); };
+            DialogStyle.Apply(this, Lang.T("自訂拇指手勢", "Customize gestures"), 470, 268, scale);
+
+            Controls.Add(new Label
+            {
+                Text = Lang.T("按住拇指手勢鍵並往一個方向滑動時要執行的動作。", "What to run when you hold the gesture button and swipe."),
+                AutoSize = true,
+                Location = new Point(s(20), s(16))
+            });
+
+            string[] names =
+            {
+                Lang.T("↑  向上", "↑  Up"), Lang.T("→  向右", "→  Right"),
+                Lang.T("↓  向下", "↓  Down"), Lang.T("←  向左", "←  Left")
+            };
+            for (int i = 0; i < 4; i++)
+            {
+                int y = 52 + i * 38;
+                Controls.Add(new Label { Text = names[i], AutoSize = false, Location = new Point(s(20), s(y + 3)), Size = new Size(s(82), s(22)) });
+                pickers[i] = new ActionPicker(this, new Point(s(106), s(y)), s(286), s(52), s(6));
+                pickers[i].Binding = current[i];
+            }
+
+            Button reset = Theme.CreateButton(Lang.T("還原預設", "Reset"), false);
+            reset.Location = new Point(s(20), s(216));
+            reset.Size = new Size(s(100), s(34));
+            reset.Click += delegate
+            {
+                ActionBinding[] defaults = Defaults();
+                for (int i = 0; i < 4; i++) pickers[i].Binding = defaults[i];
+            };
+            Controls.Add(reset);
+            Button ok = Theme.CreateButton(Lang.T("確定", "OK"), true);
+            ok.Location = new Point(s(240), s(216));
+            ok.Size = new Size(s(100), s(34));
+            ok.Click += delegate { DialogResult = DialogResult.OK; };
+            Controls.Add(ok);
+            Button cancel = Theme.CreateButton(Lang.T("取消", "Cancel"), false);
+            cancel.Location = new Point(s(350), s(216));
+            cancel.Size = new Size(s(100), s(34));
+            cancel.Click += delegate { DialogResult = DialogResult.Cancel; };
+            Controls.Add(cancel);
+        }
+
+        public static ActionBinding[] Prompt(IWin32Window owner, ActionBinding[] current)
+        {
+            using (var dialog = new GestureDialog(current))
+            {
+                if (dialog.ShowDialog(owner) != DialogResult.OK) return null;
+                var result = new ActionBinding[4];
+                for (int i = 0; i < 4; i++) result[i] = dialog.pickers[i].Binding;
+                return result;
+            }
+        }
+    }
+
     internal static class Theme
     {
         public static string UiFont
@@ -912,7 +1093,7 @@ namespace MXMasterPortable
         {
             try
             {
-                using (Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("MXMasterPortable.app.ico"))
+                using (Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("MXMasterWIN.app.ico"))
                 {
                     if (stream != null) return new Icon(stream);
                 }
@@ -925,7 +1106,7 @@ namespace MXMasterPortable
         {
             try
             {
-                using (Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("MXMasterPortable.app.png"))
+                using (Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("MXMasterWIN.app.png"))
                 {
                     if (stream != null)
                     {
@@ -1202,7 +1383,7 @@ namespace MXMasterPortable
             float scale = Theme.GetScale();
             Func<int, int> s = delegate(int v) { return (int)Math.Round(v * scale); };
 
-            Text = Lang.T("MX Master Portable — 工程模式", "MX Master Portable — Engineering mode");
+            Text = Lang.T("MX Master WIN — 工程模式", "MX Master WIN — Engineering mode");
             Icon = icon;
             Font = new Font(Theme.UiFont, 9.5F);
             BackColor = Theme.Console;
@@ -1694,6 +1875,13 @@ namespace MXMasterPortable
         private readonly Dictionary<MouseInput, ActionPicker> selectors = new Dictionary<MouseInput, ActionPicker>();
         private readonly Dictionary<MouseInput, ActionBinding> mappings = new Dictionary<MouseInput, ActionBinding>();
         private ActionBinding[] ringBindings = ActionRingOverlay.DefaultSlots();
+        // Up, right, down, left.
+        private ActionBinding[] gestureBindings = GestureDialog.Defaults();
+        private readonly ComboBox ringStyle = new ComboBox();
+        private readonly SliderBar ringSize = new SliderBar();
+        private readonly SliderBar bubbleSize = new SliderBar();
+        private readonly SliderBar ringOpacity = new SliderBar();
+        private readonly System.Windows.Forms.Timer appearanceSave = new System.Windows.Forms.Timer();
         private readonly DeviceSettings deviceSettings = new DeviceSettings();
         private DiagnosticsForm diagnostics;
         private readonly BatteryChip chip = new BatteryChip();
@@ -1705,6 +1893,7 @@ namespace MXMasterPortable
         private readonly List<Label> rowBadges = new List<Label>();
         private readonly CheckBox enableSwitch = new ToggleSwitch();
         private readonly CheckBox startMinimized = new ToggleSwitch();
+        private readonly CheckBox startWithWindows = new ToggleSwitch();
         private bool allowShow;
         private CardPanel devicePage;
         private DeviceDialog deviceEditor;
@@ -1733,6 +1922,36 @@ namespace MXMasterPortable
         private bool swallowLeftUp;
         private bool swallowRightUp;
         private readonly CheckBox ringClickMode = new ToggleSwitch();
+        // Edge switching: pushing the pointer against an outer screen edge moves the mouse to another host.
+        private static readonly string[] EdgeKeys = { "EdgeLeft", "EdgeRight", "EdgeTop", "EdgeBottom" };   // in ScreenEdge order
+        private static readonly string[] EdgeKeyNames =
+            { "None", "Ctrl", "Alt", "Shift", "Win", "Middle", "XButton2", "XButton1", "GestureButton", "ActionRingButton" };
+        private readonly CheckBox edgeSwitch = new ToggleSwitch();
+        private readonly ComboBox[] edgeTargets = new ComboBox[4];
+        private readonly int[] edgeHosts = { -1, -1, -1, -1 };      // host per edge, -1 = off
+        private readonly SliderBar edgeDwell = new SliderBar();      // tenths of a second
+        private readonly ComboBox edgeKey = new ComboBox();
+        private readonly CheckBox edgePlaceCursor = new ToggleSwitch();
+        private readonly Label edgeScreens = new Label();
+        private readonly Label[] hostLabels = new Label[3];
+        private readonly Button[] hostButtons = new Button[3];
+        private readonly System.Windows.Forms.Timer hostCheck = new System.Windows.Forms.Timer();
+        private List<HostEntry> hosts = new List<HostEntry>();
+        private int currentHost = -1;
+        private bool loadingEdge;
+        private Rectangle[] screenBounds = new Rectangle[0];
+        private bool edgePushing;
+        private ScreenEdge edgeCandidate;
+        private int pushStart, lastPush;
+        private int edgeCooldownUntil = Environment.TickCount;
+        private int lastResume = unchecked(Environment.TickCount - 600000);
+        private int lastArrival = unchecked(Environment.TickCount - 600000);
+        private bool readyOnce;
+        private readonly HashSet<MouseInput> heldInputs = new HashSet<MouseInput>();
+        private bool deferredPending;       // the edge-switch key's own action waits for its release
+        private MouseInput deferredInput;
+        private Microsoft.Win32.PowerModeChangedEventHandler powerHandler;
+        private EventHandler displayHandler;
         private Point gestureStart;
         private string gestureDirection = "";
         private string gestureCandidate = "";
@@ -1740,7 +1959,7 @@ namespace MXMasterPortable
 
         public MainForm()
         {
-            Text = "MX Master Portable";
+            Text = "MX Master WIN";
             uiScale = Theme.GetScale();
             Font = new Font(Theme.UiFont, 9.5F);
             BackColor = Theme.Page;
@@ -1751,7 +1970,7 @@ namespace MXMasterPortable
             StartPosition = FormStartPosition.CenterScreen;
             appIcon = Theme.LoadAppIcon();
             Icon = appIcon;
-            configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "mxmaster-portable.ini");
+            configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "mxmaster-win.ini");
             diagnosticLogPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "mxmaster-events.log");
 
             BuildUi();
@@ -1763,6 +1982,19 @@ namespace MXMasterPortable
             foreach (ActionPicker picker in selectors.Values)
                 picker.Changed += SaveSettings;
             gestureMode.CheckedChanged += delegate { SaveSettings(); };
+            // Sliders report every step of a drag; apply at once but write the file after a pause.
+            appearanceSave.Interval = 500;
+            appearanceSave.Tick += delegate { appearanceSave.Stop(); SaveSettings(); };
+            EventHandler appearanceChanged = delegate
+            {
+                ApplyRingAppearance();
+                appearanceSave.Stop();
+                appearanceSave.Start();
+            };
+            ringStyle.SelectedIndexChanged += appearanceChanged;
+            ringSize.ValueChanged += appearanceChanged;
+            bubbleSize.ValueChanged += appearanceChanged;
+            ringOpacity.ValueChanged += appearanceChanged;
             startMinimized.CheckedChanged += delegate { SaveSettings(); };
             actionRingMode.CheckedChanged += delegate { SaveSettings(); };
             ringClickMode.CheckedChanged += delegate
@@ -1772,7 +2004,31 @@ namespace MXMasterPortable
                 SaveSettings();
             };
 
-            rawInput = new RawInputMonitor(this.Handle, AppendRawEvent, OnVendorButton);
+            edgeSwitch.CheckedChanged += delegate { edgePushing = false; SaveSettings(); };
+            edgePlaceCursor.CheckedChanged += delegate { SaveSettings(); };
+            edgeKey.SelectedIndexChanged += delegate { deferredPending = false; SaveSettings(); };
+            edgeDwell.ValueChanged += delegate { appearanceSave.Stop(); appearanceSave.Start(); };
+            hostCheck.Interval = 2500;
+            hostCheck.Tick += delegate
+            {
+                // The mouse is still sending input here, so the switch did not take: pick the channel up again.
+                hostCheck.Stop();
+                if (rawInput.MillisecondsSinceInput < 1000) hidpp.Recheck();
+            };
+            powerHandler = delegate(object sender, Microsoft.Win32.PowerModeChangedEventArgs e)
+            {
+                if (e.Mode == Microsoft.Win32.PowerModes.Resume) lastResume = Environment.TickCount;
+            };
+            displayHandler = delegate
+            {
+                try { BeginInvoke(new Action(UpdateScreens)); }
+                catch { }
+            };
+            Microsoft.Win32.SystemEvents.PowerModeChanged += powerHandler;
+            Microsoft.Win32.SystemEvents.DisplaySettingsChanged += displayHandler;
+            UpdateScreens();
+
+            rawInput = new RawInputMonitor(this.Handle, AppendRawEvent, OnVendorButton, OnMouseActivity, OnMxMouseMove);
             hidpp = new HidppDiversionManager(OnHidppStatus, OnHidppReady);
             MouseHook.MouseEvent += OnMouseEvent;
             MouseHook.Install();
@@ -1789,12 +2045,17 @@ namespace MXMasterPortable
             }
 
             tray.Icon = new Icon(appIcon, SystemInformation.SmallIconSize);
-            tray.Text = "MX Master Portable";
+            tray.Text = "MX Master WIN";
             tray.Visible = true;
             tray.DoubleClick += delegate { ShowWindow(); };
             var menu = new ContextMenuStrip();
             menu.Items.Add(Lang.T("開啟設定", "Open settings"), null, delegate { ShowWindow(); });
             menu.Items.Add(Lang.T("暫停 / 啟用", "Pause / resume"), null, delegate { ToggleEnabled(); });
+            // Ticked while MX Flow is on; the same setting as the switch on the MX Flow page.
+            var flowItem = new ToolStripMenuItem("MX Flow");
+            flowItem.Click += delegate { edgeSwitch.Checked = !edgeSwitch.Checked; };
+            menu.Items.Add(flowItem);
+            menu.Opening += delegate { flowItem.Checked = edgeSwitch.Checked; };
             menu.Items.Add(Lang.T("工程模式…", "Engineering mode…"), null, delegate { ShowDiagnostics(); });
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add(Lang.T("結束", "Exit"), null, delegate { reallyExit = true; Close(); });
@@ -1823,7 +2084,7 @@ namespace MXMasterPortable
                 SaveSettings();
                 try
                 {
-                    tray.ShowBalloonTip(4000, "MX Master Portable",
+                    tray.ShowBalloonTip(4000, "MX Master WIN",
                         Lang.T("已在系統匣執行。按兩下系統匣圖示可開啟設定。", "Running in the tray. Double-click the tray icon to open settings."), ToolTipIcon.Info);
                 }
                 catch { }
@@ -1920,7 +2181,7 @@ namespace MXMasterPortable
 
         private void UpdateTrayText()
         {
-            string text = MouseHook.Enabled ? "MX Master Portable" : Lang.T("MX Master Portable（已暫停）", "MX Master Portable (paused)");
+            string text = MouseHook.Enabled ? "MX Master WIN" : Lang.T("MX Master WIN（已暫停）", "MX Master WIN (paused)");
             if (batteryText.Length > 0) text += "\n" + batteryText;
             tray.Text = text.Length > 63 ? text.Substring(0, 63) : text;
         }
@@ -1953,7 +2214,7 @@ namespace MXMasterPortable
             });
             Controls.Add(new Label
             {
-                Text = Lang.T("MX Master Portable　免安裝的按鍵、手勢與圓環自訂工具", "MX Master Portable  ·  portable button, gesture and ring customizer"),
+                Text = Lang.T("MX Master WIN　免安裝的按鍵、手勢與圓環自訂工具", "MX Master WIN  ·  portable button, gesture and ring customizer"),
                 AutoSize = true,
                 ForeColor = Theme.Muted,
                 Font = new Font(Theme.UiFont, 9F),
@@ -1963,7 +2224,8 @@ namespace MXMasterPortable
             AddNavigation(Lang.T("按鈕", "Buttons"), "", 0);
             AddNavigation(Lang.T("手勢與圓環", "Gestures & Ring"), "", 1);
             AddNavigation(Lang.T("指標與滾輪", "Pointer & Wheel"), "", 2);
-            AddNavigation(Lang.T("進階", "Advanced"), "", 3);
+            AddNavigation("MX Flow", "", 3);
+            AddNavigation(Lang.T("進階", "Advanced"), "", 4);
 
             chip.Location = new Point(S(24), S(566));
             chip.Size = new Size(S(202), S(36));
@@ -2003,7 +2265,7 @@ namespace MXMasterPortable
             gestureMode.Location = new Point(S(18), S(58));
             gestureMode.Size = new Size(column, S(26));
             modePage.Controls.Add(gestureMode);
-            AddHint(modePage, Lang.T("按住並滑動：左右換頁、上工作檢視、下顯示桌面", "Hold and swipe: ←/→ pages, ↑ Task View, ↓ desktop"), 88);
+            AddHint(modePage, Lang.T("按住並滑動；四個方向的動作可用「自訂手勢…」設定", "Hold and swipe; set each direction with Customize gestures…"), 88);
             AddDivider(modePage, 122, column);
 
             actionRingMode.Text = Lang.T("Actions Ring 八方向圓環", "Actions Ring eight-way menu");
@@ -2033,6 +2295,33 @@ namespace MXMasterPortable
             };
             modePage.Controls.Add(customizeRing);
 
+            Button customizeGestures = Theme.CreateButton(Lang.T("自訂手勢…", "Customize gestures…"), false);
+            customizeGestures.Location = new Point(S(152), S(266));
+            customizeGestures.Size = new Size(S(144), S(34));
+            customizeGestures.Click += delegate
+            {
+                ActionBinding[] edited = GestureDialog.Prompt(this, gestureBindings);
+                if (edited == null) return;
+                gestureBindings = edited;
+                UpdateGestureNames();
+                SaveSettings();
+            };
+            modePage.Controls.Add(customizeGestures);
+
+            // Ring appearance: style, overall size, bubble size and opacity.
+            AddRingOption(modePage, Lang.T("圓環樣式", "Ring style"), 314, null);
+            ringStyle.DropDownStyle = ComboBoxStyle.DropDownList;
+            ringStyle.Items.Add(Lang.T("分格圓環", "Ring"));
+            ringStyle.Items.Add(Lang.T("泡泡（只顯示圖示）", "Bubbles (icons only)"));
+            ringStyle.SelectedIndex = 0;
+            ringStyle.Location = new Point(S(104), S(312));
+            ringStyle.Width = S(186);
+            modePage.Controls.Add(ringStyle);
+            AddRingOption(modePage, Lang.T("整體大小", "Overall size"), 348, ringSize);
+            AddRingOption(modePage, Lang.T("泡泡大小", "Bubble size"), 380, bubbleSize);
+            ringOpacity.Minimum = 40;
+            AddRingOption(modePage, Lang.T("不透明度", "Opacity"), 412, ringOpacity);
+
             ringPreview.SizeMode = PictureBoxSizeMode.Zoom;
             ringPreview.Location = new Point(S(372), S(64));
             ringPreview.Size = new Size(S(296), S(296));
@@ -2051,7 +2340,107 @@ namespace MXMasterPortable
             // ---- Page 2: pointer, wheel and haptics. Filled in on first use, once HID++ exists. ----
             devicePage = AddPage("");
 
-            // ---- Page 3: everything else ----
+            // ---- Page 3: MX Flow, switching computers at a screen edge ----
+            CardPanel switchPage = AddPage("MX Flow");
+            edgeSwitch.Text = Lang.T("啟用 MX Flow：游標推到螢幕邊緣時切換電腦", "Enable MX Flow: switch computers at a screen edge");
+            edgeSwitch.Location = new Point(S(18), S(58));
+            edgeSwitch.Size = new Size(switchPage.Width - S(36), S(26));
+            switchPage.Controls.Add(edgeSwitch);
+            AddHint(switchPage, Lang.T("游標貼著邊緣並持續往外推，滑鼠就切到指定的 Easy-Switch 頻道；按著左、右鍵拖曳時不會切換",
+                "Keep pushing the pointer against an edge to move the mouse to that Easy-Switch channel; never while dragging"), 88);
+            AddDivider(switchPage, 118, switchPage.Width - S(36));
+
+            string[] edgeNames = { Lang.T("左邊緣", "Left edge"), Lang.T("右邊緣", "Right edge"), Lang.T("上邊緣", "Top edge"), Lang.T("下邊緣", "Bottom edge") };
+            for (int i = 0; i < 4; i++)
+            {
+                int edgeIndex = i;
+                int rowY = 130 + i * 34;
+                switchPage.Controls.Add(new Label { Text = edgeNames[i], AutoSize = false, Location = new Point(S(18), S(rowY + 3)), Size = new Size(S(84), S(22)) });
+                var combo = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(S(104), S(rowY)), Width = S(250) };
+                combo.SelectedIndexChanged += delegate
+                {
+                    if (loadingEdge) return;
+                    edgeHosts[edgeIndex] = combo.SelectedIndex - 1;
+                    edgePushing = false;
+                    SaveSettings();
+                };
+                edgeTargets[i] = combo;
+                switchPage.Controls.Add(combo);
+            }
+
+            int right = 390;
+            switchPage.Controls.Add(new Label { Text = Lang.T("觸發時間", "Trigger time"), AutoSize = false, Location = new Point(S(right), S(133)), Size = new Size(S(84), S(22)) });
+            edgeDwell.Maximum = 20;
+            edgeDwell.Minimum = 1;
+            edgeDwell.Value = 3;
+            edgeDwell.Location = new Point(S(right + 86), S(130));
+            edgeDwell.Size = new Size(S(186), S(26));
+            var dwellReadout = new Label
+            {
+                AutoSize = false,
+                TextAlign = ContentAlignment.MiddleRight,
+                Location = new Point(S(right + 276), S(131)),
+                Size = new Size(S(64), S(22))
+            };
+            EventHandler showDwell = delegate { dwellReadout.Text = (edgeDwell.Value / 10.0).ToString("0.0") + Lang.T(" 秒", " s"); };
+            edgeDwell.ValueChanged += showDwell;
+            showDwell(null, EventArgs.Empty);
+            switchPage.Controls.Add(edgeDwell);
+            switchPage.Controls.Add(dwellReadout);
+
+            switchPage.Controls.Add(new Label { Text = Lang.T("按住按鍵", "Held key"), AutoSize = false, Location = new Point(S(right), S(167)), Size = new Size(S(84), S(22)) });
+            edgeKey.DropDownStyle = ComboBoxStyle.DropDownList;
+            edgeKey.Items.AddRange(new object[]
+            {
+                Lang.T("不需要", "None"), "Ctrl", "Alt", "Shift", "Win",
+                Lang.T("中鍵", "Middle button"), Lang.T("側鍵 2・上一頁", "Side 2 · Back"), Lang.T("側鍵 3・下一頁", "Side 3 · Forward"),
+                Lang.T("拇指手勢鍵", "Gesture button"), Lang.T("Actions Ring 鍵", "Actions Ring button")
+            });
+            edgeKey.SelectedIndex = 0;
+            edgeKey.Location = new Point(S(right + 86), S(164));
+            edgeKey.Width = S(200);
+            switchPage.Controls.Add(edgeKey);
+            AddHintAt(switchPage, Lang.T("選了按鍵就要按住它再推到邊緣；選滑鼠按鍵時，", "With a key chosen, hold it while pushing. A mouse button"), right, 194);
+            AddHintAt(switchPage, Lang.T("它原本的動作改在放開時執行", "chosen here runs its own action on release instead"), right, 212);
+
+            edgePlaceCursor.Text = Lang.T("切回來時把游標移到邊緣", "Place the pointer at the edge on return");
+            edgePlaceCursor.Checked = true;
+            edgePlaceCursor.Location = new Point(S(right), S(236));
+            edgePlaceCursor.Size = new Size(switchPage.Width - S(18) - S(right), S(26));
+            switchPage.Controls.Add(edgePlaceCursor);
+
+            edgeScreens.AutoSize = true;
+            edgeScreens.ForeColor = Theme.Muted;
+            edgeScreens.Font = new Font(Theme.UiFont, 8.5F);
+            edgeScreens.Location = new Point(S(18), S(270));
+            switchPage.Controls.Add(edgeScreens);
+            AddDivider(switchPage, 296, switchPage.Width - S(36));
+
+            switchPage.Controls.Add(new Label { Text = Lang.T("Easy-Switch 頻道", "Easy-Switch channels"), AutoSize = true, Location = new Point(S(18), S(306)) });
+            for (int i = 0; i < 3; i++)
+            {
+                int hostIndex = i;
+                hostLabels[i] = new Label
+                {
+                    AutoSize = false,
+                    AutoEllipsis = true,
+                    UseMnemonic = false,
+                    TextAlign = ContentAlignment.MiddleLeft,
+                    Location = new Point(S(18), S(332 + i * 30)),
+                    Size = new Size(switchPage.Width - S(36) - S(130), S(26))
+                };
+                Button go = Theme.CreateButton(Lang.T("切換過去", "Switch"), false);
+                go.Size = new Size(S(112), S(26));
+                go.Location = new Point(switchPage.Width - S(18) - go.Width, S(332 + i * 30));
+                go.Click += delegate { SwitchHost(hostIndex, "manual"); };
+                hostButtons[i] = go;
+                switchPage.Controls.Add(hostLabels[i]);
+                switchPage.Controls.Add(go);
+            }
+            AddHint(switchPage, Lang.T("切過去後，另一台電腦也要執行本程式並設定邊緣才能同樣切回來；否則請按滑鼠底部的 Easy-Switch 鍵。不傳送剪貼簿或檔案",
+                "To come back the same way the other computer must run this app with an edge set; otherwise use the Easy-Switch button. No clipboard or files"), 428);
+
+            // ---- Page 4: everything else ----
             CardPanel advancedPage = AddPage(Lang.T("進階", "Advanced"));
             enableSwitch.Text = Lang.T("啟用按鍵對應", "Enable button mapping");
             enableSwitch.Checked = true;
@@ -2072,17 +2461,33 @@ namespace MXMasterPortable
             advancedPage.Controls.Add(startMinimized);
             AddHint(advancedPage, Lang.T("開啟程式時不顯示視窗；關閉視窗也只是隱藏，要結束請用系統匣圖示的選單",
                 "No window is shown at launch. Closing the window only hides it; use the tray icon menu to exit"), 166);
-            AddDivider(advancedPage, 200, advancedPage.Width - S(36));
+
+            // Off unless the user turns it on. The switch mirrors whether the shortcut exists, so it is
+            // not stored in the INI, and a shortcut left by an older location is refreshed at start-up.
+            startWithWindows.Text = Lang.T("登入 Windows 時自動啟動", "Start when I sign in to Windows");
+            startWithWindows.Location = new Point(S(18), S(194));
+            startWithWindows.Size = new Size(advancedPage.Width - S(36), S(26));
+            startWithWindows.Checked = StartupShortcut.Exists;
+            if (startWithWindows.Checked)
+            {
+                string ignored;
+                StartupShortcut.Create(out ignored);
+            }
+            startWithWindows.CheckedChanged += delegate { ApplyStartWithWindows(); };
+            advancedPage.Controls.Add(startWithWindows);
+            AddHint(advancedPage, Lang.T("會在你的「啟動」資料夾放一個捷徑；關閉時移除。不需要管理員權限，也不修改登錄檔",
+                "Puts a shortcut in your Startup folder and removes it when turned off. No admin rights, no registry change"), 224);
+            AddDivider(advancedPage, 256, advancedPage.Width - S(36));
 
             // Language: every string is chosen at start-up, so a change relaunches the app.
-            advancedPage.Controls.Add(new Label { Text = "語言 / Language", AutoSize = true, Location = new Point(S(18), S(214)) });
-            AddHint(advancedPage, Lang.T("變更後程式會自動重新啟動", "The app restarts after a change"), 238);
+            advancedPage.Controls.Add(new Label { Text = "語言 / Language", AutoSize = true, Location = new Point(S(18), S(268)) });
+            AddHint(advancedPage, Lang.T("變更後程式會自動重新啟動", "The app restarts after a change"), 292);
             var language = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = S(190) };
             language.Items.Add(Lang.T("跟隨系統", "Follow system"));
             language.Items.Add("繁體中文");
             language.Items.Add("English");
             language.SelectedIndex = Lang.Setting == "zh" ? 1 : Lang.Setting == "en" ? 2 : 0;
-            language.Location = new Point(advancedPage.Width - S(18) - language.Width, S(222));
+            language.Location = new Point(advancedPage.Width - S(18) - language.Width, S(276));
             language.SelectionChangeCommitted += delegate
             {
                 string chosen = language.SelectedIndex == 1 ? "zh" : language.SelectedIndex == 2 ? "en" : "Auto";
@@ -2094,14 +2499,18 @@ namespace MXMasterPortable
                 Close();
             };
             advancedPage.Controls.Add(language);
-            AddDivider(advancedPage, 278, advancedPage.Width - S(36));
+            AddDivider(advancedPage, 330, advancedPage.Width - S(36));
 
-            AddActionRow(advancedPage, Lang.T("工程模式", "Engineering mode"), Lang.T("檢視滑鼠送出的原始事件，用於辨識按鍵或回報問題", "View the raw events the mouse sends, to identify buttons or report problems"), Lang.T("開啟工程模式…", "Open…"), 292,
+            AddActionRow(advancedPage, Lang.T("工程模式", "Engineering mode"), Lang.T("檢視滑鼠送出的原始事件，用於辨識按鍵或回報問題", "View the raw events the mouse sends, to identify buttons or report problems"), Lang.T("開啟工程模式…", "Open…"), 342,
                 delegate { ShowDiagnostics(); });
-            AddDivider(advancedPage, 356, advancedPage.Width - S(36));
+            AddDivider(advancedPage, 402, advancedPage.Width - S(36));
 
-            advancedPage.Controls.Add(new Label { Text = Lang.T("關於", "About") + "　MX Master Portable " + Program.Version, AutoSize = true, Location = new Point(S(18), S(370)) });
-            AddHint(advancedPage, Lang.T("免安裝、免管理員權限；不安裝驅動或服務，也不會設定開機自動啟動。", "Portable, no admin rights; installs no driver or service and never starts itself with Windows."), 394);
+            advancedPage.Controls.Add(new Label
+            {
+                Text = Lang.T("關於", "About") + "　MX Master WIN " + Program.Version + Lang.T("　免安裝、免管理員權限，不安裝驅動或服務", "    Portable, no admin rights, no driver or service"),
+                AutoSize = true,
+                Location = new Point(S(18), S(412))
+            });
             advancedPage.Controls.Add(new Label
             {
                 Text = Lang.T("設定檔：", "Settings file: ") + configPath,
@@ -2109,7 +2518,7 @@ namespace MXMasterPortable
                 AutoEllipsis = true,
                 ForeColor = Theme.Muted,
                 Font = new Font(Theme.UiFont, 8.5F),
-                Location = new Point(S(18), S(416)),
+                Location = new Point(S(18), S(434)),
                 Size = new Size(advancedPage.Width - S(36), S(20))
             });
 
@@ -2136,7 +2545,7 @@ namespace MXMasterPortable
                 {
                     try
                     {
-                        File.WriteAllText(diagnosticLogPath, "MX Master Portable diagnostic capture\r\n", Encoding.UTF8);
+                        File.WriteAllText(diagnosticLogPath, "MX Master WIN diagnostic capture\r\n", Encoding.UTF8);
                         AddLog(DateTime.Now.ToString("HH:mm:ss.fff") + " Diagnostics enabled; movement-only events are filtered.");
                         AddLog(DateTime.Now.ToString("HH:mm:ss.fff") + " Log file: " + diagnosticLogPath);
                     }
@@ -2218,7 +2627,7 @@ namespace MXMasterPortable
             eventLog.Items.Clear();
             if (liveLog.Checked)
             {
-                try { File.WriteAllText(diagnosticLogPath, "MX Master Portable diagnostic capture\r\n", Encoding.UTF8); }
+                try { File.WriteAllText(diagnosticLogPath, "MX Master WIN diagnostic capture\r\n", Encoding.UTF8); }
                 catch { }
                 AddLog(DateTime.Now.ToString("HH:mm:ss.fff") + " Capture cleared; waiting for input...");
             }
@@ -2238,7 +2647,7 @@ namespace MXMasterPortable
             // Shown once ever, so the user knows where the window went.
             trayHintShown = true;
             SaveSettings();
-            try { tray.ShowBalloonTip(4000, "MX Master Portable", Lang.T("程式仍在背景執行。可從系統匣圖示開啟設定或結束。", "Still running in the background. Use the tray icon to open settings or exit."), ToolTipIcon.Info); }
+            try { tray.ShowBalloonTip(4000, "MX Master WIN", Lang.T("程式仍在背景執行。可從系統匣圖示開啟設定或結束。", "Still running in the background. Use the tray icon to open settings or exit."), ToolTipIcon.Info); }
             catch { }
         }
 
@@ -2262,6 +2671,78 @@ namespace MXMasterPortable
                 ForeColor = Theme.Muted,
                 Font = new Font(Theme.UiFont, 8.5F),
                 Location = new Point(S(18), S(y))
+            });
+        }
+
+        // One labelled row of the ring appearance settings; slider rows also get a percent readout.
+        private void AddRingOption(Control parent, string text, int y, SliderBar slider)
+        {
+            parent.Controls.Add(new Label { Text = text, AutoSize = false, Location = new Point(S(18), S(y + 2)), Size = new Size(S(84), S(22)) });
+            if (slider == null) return;
+            slider.Maximum = 100;
+            slider.Value = slider == ringOpacity ? 100 : 50;
+            slider.Location = new Point(S(104), S(y));
+            slider.Size = new Size(S(186), S(26));
+            var readout = new Label
+            {
+                Text = slider.Value + "%",
+                AutoSize = false,
+                TextAlign = ContentAlignment.MiddleRight,
+                Location = new Point(S(294), S(y + 1)),
+                Size = new Size(S(48), S(22))
+            };
+            slider.ValueChanged += delegate { readout.Text = slider.Value + "%"; };
+            parent.Controls.Add(slider);
+            parent.Controls.Add(readout);
+        }
+
+        // Percent settings to multipliers. 50% is the default size; the scales match the macOS version.
+        private void ApplyRingAppearance()
+        {
+            float size = 0.78F * (0.5F + ringSize.Value / 100F);
+            float bubble = bubbleSize.Value <= 50
+                ? 0.6F + 0.2F * (bubbleSize.Value / 50F)
+                : 0.8F + 0.225F * ((bubbleSize.Value - 50) / 50F);
+            bubbleSize.Enabled = ringStyle.SelectedIndex == 1;
+            actionRing.Configure(ringStyle.SelectedIndex == 1, size, bubble, ringOpacity.Value / 100F);
+            UpdateRingPreview();
+        }
+
+        private bool applyingStartup;
+
+        private void ApplyStartWithWindows()
+        {
+            if (applyingStartup) return;
+            string error;
+            bool ok = startWithWindows.Checked ? StartupShortcut.Create(out error) : StartupShortcut.Remove(out error);
+            if (ok)
+            {
+                status.Text = startWithWindows.Checked
+                    ? Lang.T("已在「啟動」資料夾建立捷徑", "Shortcut added to the Startup folder")
+                    : Lang.T("已移除「啟動」資料夾的捷徑", "Shortcut removed from the Startup folder");
+                return;
+            }
+            // Put the switch back to what is really on disk, then say why.
+            applyingStartup = true;
+            startWithWindows.Checked = StartupShortcut.Exists;
+            applyingStartup = false;
+            MessageBox.Show(Lang.T("無法變更自動啟動：", "Could not change start-up: ") + error, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+
+        private void UpdateGestureNames()
+        {
+            for (int i = 0; i < 4; i++) overlay.Names[i] = gestureBindings[i].ShortLabel;
+        }
+
+        private void AddHintAt(Control parent, string text, int x, int y)
+        {
+            parent.Controls.Add(new Label
+            {
+                Text = text,
+                AutoSize = true,
+                ForeColor = Theme.Muted,
+                Font = new Font(Theme.UiFont, 8.5F),
+                Location = new Point(S(x), S(y))
             });
         }
 
@@ -2380,6 +2861,23 @@ namespace MXMasterPortable
                         continue;
                     }
                     string key = parts[0].Trim();
+                    if (key.Equals("RingStyle", StringComparison.OrdinalIgnoreCase))
+                    {
+                        ringStyle.SelectedIndex = parts[1].Trim().Equals("Bubble", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+                        continue;
+                    }
+                    if (key.Equals("RingSize", StringComparison.OrdinalIgnoreCase) || key.Equals("BubbleSize", StringComparison.OrdinalIgnoreCase) ||
+                        key.Equals("RingOpacity", StringComparison.OrdinalIgnoreCase))
+                    {
+                        int percent;
+                        if (int.TryParse(parts[1].Trim(), out percent))
+                        {
+                            if (key.Equals("RingSize", StringComparison.OrdinalIgnoreCase)) ringSize.Value = percent;
+                            else if (key.Equals("BubbleSize", StringComparison.OrdinalIgnoreCase)) bubbleSize.Value = percent;
+                            else ringOpacity.Value = percent;
+                        }
+                        continue;
+                    }
                     if (key.Equals("TrayHintShown", StringComparison.OrdinalIgnoreCase))
                     {
                         bool.TryParse(parts[1], out trayHintShown);
@@ -2391,11 +2889,48 @@ namespace MXMasterPortable
                         if (bool.TryParse(parts[1], out minimized)) startMinimized.Checked = minimized;
                         continue;
                     }
+                    if (key.Equals("EdgeSwitch", StringComparison.OrdinalIgnoreCase) || key.Equals("EdgePlaceCursor", StringComparison.OrdinalIgnoreCase))
+                    {
+                        bool on;
+                        if (bool.TryParse(parts[1], out on))
+                        {
+                            if (key.Equals("EdgeSwitch", StringComparison.OrdinalIgnoreCase)) edgeSwitch.Checked = on;
+                            else edgePlaceCursor.Checked = on;
+                        }
+                        continue;
+                    }
+                    if (key.Equals("EdgeDwell", StringComparison.OrdinalIgnoreCase))
+                    {
+                        int milliseconds;
+                        if (int.TryParse(parts[1].Trim(), out milliseconds)) edgeDwell.Value = (milliseconds + 50) / 100;
+                        continue;
+                    }
+                    if (key.Equals("EdgeKey", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string wanted = parts[1].Trim();
+                        int found = Array.FindIndex(EdgeKeyNames, delegate(string name) { return name.Equals(wanted, StringComparison.OrdinalIgnoreCase); });
+                        if (found >= 0) edgeKey.SelectedIndex = found;
+                        continue;
+                    }
+                    int edgeSlot = Array.FindIndex(EdgeKeys, delegate(string name) { return name.Equals(key, StringComparison.OrdinalIgnoreCase); });
+                    if (edgeSlot >= 0)
+                    {
+                        // Stored as the channel number printed under the mouse (1-3); 0 means off.
+                        int channel;
+                        if (int.TryParse(parts[1].Trim(), out channel) && channel >= 0 && channel <= 8) edgeHosts[edgeSlot] = channel - 1;
+                        continue;
+                    }
                     // Read earlier by Lang.Load, before any window existed.
                     if (key.Equals("Language", StringComparison.OrdinalIgnoreCase)) continue;
                     if (deviceSettings.TryLoad(key, parts[1])) continue;
                     ActionBinding binding = ActionBinding.Parse(parts[1]);
                     if (binding == null) continue;
+                    int gesture = Array.FindIndex(GestureKeys, delegate(string name) { return name.Equals(key, StringComparison.OrdinalIgnoreCase); });
+                    if (gesture >= 0)
+                    {
+                        gestureBindings[gesture] = binding;
+                        continue;
+                    }
                     int slot;
                     if (key.Length == 5 && key.StartsWith("Ring", StringComparison.OrdinalIgnoreCase) &&
                         int.TryParse(key.Substring(4), out slot) && slot >= 0 && slot < 8)
@@ -2412,14 +2947,19 @@ namespace MXMasterPortable
             foreach (var pair in selectors)
                 pair.Value.Binding = mappings[pair.Key];
             actionRing.SetSlots(ringBindings);
+            UpdateGestureNames();
+            ApplyRingAppearance();
+            RefreshHostUi();
         }
+
+        private static readonly string[] GestureKeys = { "GestureUp", "GestureRight", "GestureDown", "GestureLeft" };
 
         private void SaveSettings()
         {
             try
             {
                 var lines = new List<string>();
-                lines.Add("# MX Master Portable settings");
+                lines.Add("# MX Master WIN settings");
                 foreach (var pair in selectors)
                 {
                     ActionBinding binding = pair.Value.Binding;
@@ -2429,7 +2969,19 @@ namespace MXMasterPortable
                 lines.Add("GestureMode=" + gestureMode.Checked);
                 lines.Add("ActionRingMode=" + actionRingMode.Checked);
                 lines.Add("ActionRingClick=" + ringClickMode.Checked);
+                lines.Add("RingStyle=" + (ringStyle.SelectedIndex == 1 ? "Bubble" : "Ring"));
+                lines.Add("RingSize=" + ringSize.Value);
+                lines.Add("BubbleSize=" + bubbleSize.Value);
+                lines.Add("RingOpacity=" + ringOpacity.Value);
+                for (int i = 0; i < GestureKeys.Length; i++)
+                    lines.Add(GestureKeys[i] + "=" + gestureBindings[i]);
                 lines.Add("StartMinimized=" + startMinimized.Checked);
+                lines.Add("EdgeSwitch=" + edgeSwitch.Checked);
+                for (int i = 0; i < EdgeKeys.Length; i++)
+                    lines.Add(EdgeKeys[i] + "=" + (edgeHosts[i] + 1));
+                lines.Add("EdgeDwell=" + edgeDwell.Value * 100);
+                lines.Add("EdgeKey=" + EdgeKeyNames[Math.Max(0, edgeKey.SelectedIndex)]);
+                lines.Add("EdgePlaceCursor=" + edgePlaceCursor.Checked);
                 lines.Add("Language=" + Lang.Setting);
                 // Ring0 is the top slice; the rest follow clockwise.
                 for (int i = 0; i < ringBindings.Length; i++)
@@ -2530,20 +3082,45 @@ namespace MXMasterPortable
 
             MouseInput input;
             bool actionable = true;
+            bool button = true;
             switch (e.Kind)
             {
+                case MouseHookKind.MiddleUp: return ButtonReleased(MouseInput.Middle);
+                case MouseHookKind.XButton1Up: return ButtonReleased(MouseInput.XButton1);
+                case MouseHookKind.XButton2Up: return ButtonReleased(MouseInput.XButton2);
                 case MouseHookKind.MiddleDown: input = MouseInput.Middle; break;
                 case MouseHookKind.XButton1Down: input = MouseInput.XButton1; break;
                 case MouseHookKind.XButton2Down: input = MouseInput.XButton2; break;
-                case MouseHookKind.WheelLeft: input = MouseInput.WheelLeft; break;
-                case MouseHookKind.WheelRight: input = MouseInput.WheelRight; break;
+                case MouseHookKind.WheelLeft: input = MouseInput.WheelLeft; button = false; break;
+                case MouseHookKind.WheelRight: input = MouseInput.WheelRight; button = false; break;
                 default: input = MouseInput.Middle; actionable = false; break;
             }
             if (!actionable) return false;
+            if (button) heldInputs.Add(input);
             ActionBinding mapped = GetMapping(input);
             if (mapped.IsPassThrough) return false;
+            if (button && IsEdgeKey(input))
+            {
+                // Held to switch computers: its own action runs on release, unless a switch happened.
+                deferredPending = true;
+                deferredInput = input;
+                return true;
+            }
             BeginInvoke(new Action(delegate { ActionRunner.Run(mapped); }));
             return true;
+        }
+
+        // Releases are passed on as before; a deferred action of the edge-switch key runs now.
+        private bool ButtonReleased(MouseInput input)
+        {
+            heldInputs.Remove(input);
+            if (deferredPending && deferredInput == input)
+            {
+                deferredPending = false;
+                ActionBinding mapped = GetMapping(input);
+                if (!mapped.IsPassThrough) BeginInvoke(new Action(delegate { ActionRunner.Run(mapped); }));
+            }
+            return false;
         }
 
         private void OnVendorButton(string transport, int deviceIndex, int controlCode, bool pressed)
@@ -2598,7 +3175,16 @@ namespace MXMasterPortable
                 return;
             }
 
-            if (pressed)
+            // A special button used as a plain button acts on press. When it is the edge-switch key
+            // it acts on release instead, and not at all when the mouse switched in between.
+            bool run = pressed;
+            if (IsEdgeKey(input))
+            {
+                run = !pressed && deferredPending && deferredInput == input;
+                deferredPending = pressed;
+                deferredInput = input;
+            }
+            if (run)
             {
                 ActionBinding action = GetMapping(input);
                 bool sent = !action.IsPassThrough && ActionRunner.Run(action);
@@ -2624,10 +3210,10 @@ namespace MXMasterPortable
             string direction = gestureDirection;
             overlay.Hide();
             ActionBinding selected;
-            if (direction == "左") selected = ActionBinding.Of(MappedAction.BrowserBack);
-            else if (direction == "右") selected = ActionBinding.Of(MappedAction.BrowserForward);
-            else if (direction == "上") selected = ActionBinding.Of(MappedAction.TaskView);
-            else if (direction == "下") selected = ActionBinding.Of(MappedAction.ShowDesktop);
+            if (direction == "左") selected = gestureBindings[3];
+            else if (direction == "右") selected = gestureBindings[1];
+            else if (direction == "上") selected = gestureBindings[0];
+            else if (direction == "下") selected = gestureBindings[2];
             else selected = gestureMoved ? ActionBinding.Of(MappedAction.PassThrough) : GetMapping(fallbackInput);
 
             bool sent = !selected.IsPassThrough && ActionRunner.Run(selected);
@@ -2700,7 +3286,255 @@ namespace MXMasterPortable
         private void OnHidppReady(int deviceIndex, int featureIndex)
         {
             rawInput.ConfigureHidppDiversion(deviceIndex, featureIndex);
+            try
+            {
+                // A button state left over from before a reconnect would swallow the next press.
+                BeginInvoke(new Action(delegate
+                {
+                    vendorState.Clear();
+                    rawInput.ResetPressed();
+                    MouseArrived();
+                }));
+            }
+            catch { }
             RestoreDeviceSettings();
+            RefreshHosts();
+        }
+
+        // ---- MX Flow: switching computers ----
+
+        private void UpdateScreens()
+        {
+            Screen[] all = Screen.AllScreens;
+            screenBounds = Array.ConvertAll(all, delegate(Screen screen) { return screen.Bounds; });
+            edgeScreens.Text = all.Length > 1
+                ? String.Format(Lang.T("偵測到 {0} 個螢幕：只有最外側螢幕的外緣會觸發，螢幕之間相接的邊與角落不會",
+                    "{0} monitors detected: only the outer edge of the outermost monitor triggers; edges between monitors and corners never do"), all.Length)
+                : Lang.T("角落不會觸發。接上多個螢幕時，只有最外側螢幕的外緣會觸發",
+                    "Corners never trigger. With several monitors, only the outer edge of the outermost monitor triggers");
+        }
+
+        private void RefreshHosts()
+        {
+            ThreadPool.QueueUserWorkItem(delegate
+            {
+                int current = -1;
+                List<HostEntry> read = null;
+                try { read = hidpp.ReadHosts(out current); }
+                catch { }
+                if (read == null || read.Count == 0) return;
+                try
+                {
+                    if (!IsHandleCreated || IsDisposed) return;
+                    BeginInvoke(new Action(delegate
+                    {
+                        hosts = read;
+                        currentHost = current;
+                        RefreshHostUi();
+                    }));
+                }
+                catch { }
+            });
+        }
+
+        private string HostTitle(int index)
+        {
+            string channel = String.Format(Lang.T("頻道 {0}", "Channel {0}"), index + 1);
+            HostEntry entry = hosts.Find(delegate(HostEntry h) { return h.Index == index; });
+            return entry == null || entry.Name.Length == 0 ? channel : channel + " · " + entry.Name;
+        }
+
+        // Fills the per-edge lists and the channel rows from what the mouse reported; before the
+        // first read the three channels are listed without names so the settings stay visible.
+        private void RefreshHostUi()
+        {
+            int count = hosts.Count > 0 ? hosts.Count : 3;
+            loadingEdge = true;
+            try
+            {
+                for (int i = 0; i < edgeTargets.Length; i++)
+                {
+                    ComboBox combo = edgeTargets[i];
+                    combo.Items.Clear();
+                    combo.Items.Add(Lang.T("不切換", "Off"));
+                    for (int h = 0; h < Math.Max(count, edgeHosts[i] + 1); h++)
+                        combo.Items.Add(HostTitle(h) + (h == currentHost ? Lang.T("（這台電腦）", " (this computer)") : ""));
+                    combo.SelectedIndex = edgeHosts[i] + 1;
+                }
+            }
+            finally { loadingEdge = false; }
+
+            for (int i = 0; i < hostLabels.Length; i++)
+            {
+                HostEntry entry = hosts.Find(delegate(HostEntry h) { return h.Index == i; });
+                var parts = new List<string>();
+                parts.Add(HostTitle(i));
+                if (entry != null && entry.BusName.Length > 0) parts.Add(entry.BusName);
+                if (entry != null && !entry.Paired) parts.Add(Lang.T("未配對", "Not paired"));
+                if (i == currentHost) parts.Add(Lang.T("目前使用中", "In use now"));
+                hostLabels[i].Text = String.Join("　", parts.ToArray());
+                hostButtons[i].Enabled = entry != null && entry.Paired && i != currentHost;
+            }
+        }
+
+        private bool IsEdgeKey(MouseInput input)
+        {
+            return edgeSwitch.Checked && edgeKey.SelectedIndex >= 5 &&
+                EdgeKeyNames[edgeKey.SelectedIndex].Equals(input.ToString(), StringComparison.Ordinal);
+        }
+
+        private static bool IsKeyDown(int virtualKey)
+        {
+            return (GetAsyncKeyState(virtualKey) & 0x8000) != 0;
+        }
+
+        private bool VendorDown(int controlCode)
+        {
+            bool down;
+            return vendorState.TryGetValue(controlCode, out down) && down;
+        }
+
+        private bool EdgeKeyHeld()
+        {
+            switch (edgeKey.SelectedIndex)
+            {
+                case 1: return IsKeyDown(0x11);                       // VK_CONTROL
+                case 2: return IsKeyDown(0x12);                       // VK_MENU
+                case 3: return IsKeyDown(0x10);                       // VK_SHIFT
+                case 4: return IsKeyDown(0x5B) || IsKeyDown(0x5C);      // VK_LWIN / VK_RWIN
+                case 5: return heldInputs.Contains(MouseInput.Middle);
+                case 6: return heldInputs.Contains(MouseInput.XButton2);
+                case 7: return heldInputs.Contains(MouseInput.XButton1);
+                case 8: return VendorDown(0x00C3);
+                case 9: return VendorDown(0x01A0);
+                default: return true;
+            }
+        }
+
+        // Called for every relative movement report of the MX mouse itself, so a touchpad or another
+        // mouse never triggers a switch. The pointer has to sit on a configured outer edge and keep
+        // being pushed outwards for the trigger time; resting there or sliding along the edge does not count.
+        private void OnMxMouseMove(int dx, int dy)
+        {
+            if (!MouseHook.Enabled || !edgeSwitch.Checked)
+            {
+                edgePushing = false;
+                return;
+            }
+            int now = Environment.TickCount;
+            if (unchecked(now - edgeCooldownUntil) < 0) return;
+            // A ring or gesture in progress blocks switching, unless the held key is the very button that opens it.
+            if ((actionRingActive && edgeKey.SelectedIndex != 9) || (gestureActive && edgeKey.SelectedIndex != 8) ||
+                IsKeyDown(0x01) || IsKeyDown(0x02))
+            {
+                edgePushing = false;
+                return;
+            }
+            ScreenEdge edge;
+            if (!EdgeGeometry.TryGetEdge(Cursor.Position, screenBounds, out edge))
+            {
+                edgePushing = false;
+                return;
+            }
+            int target = edgeHosts[(int)edge];
+            if (target < 0 || target == currentHost || !EdgeKeyHeld())
+            {
+                edgePushing = false;
+                return;
+            }
+
+            int outward, along;
+            switch (edge)
+            {
+                case ScreenEdge.Left: outward = -dx; along = Math.Abs(dy); break;
+                case ScreenEdge.Right: outward = dx; along = Math.Abs(dy); break;
+                case ScreenEdge.Top: outward = -dy; along = Math.Abs(dx); break;
+                default: outward = dy; along = Math.Abs(dx); break;
+            }
+            if (outward <= 0 || outward < along) return;
+
+            if (!edgePushing || edge != edgeCandidate || unchecked(now - lastPush) > 250)
+            {
+                edgePushing = true;
+                edgeCandidate = edge;
+                pushStart = now;
+            }
+            lastPush = now;
+            if (unchecked(now - pushStart) >= edgeDwell.Value * 100)
+                SwitchHost(target, "edge " + edge);
+        }
+
+        private void SwitchHost(int host, string reason)
+        {
+            edgeCooldownUntil = unchecked(Environment.TickCount + 3000);
+            edgePushing = false;
+            // Once the mouse has left, the releases of whatever is held never arrive here.
+            deferredPending = false;
+            heldInputs.Clear();
+            vendorState.Clear();
+            rawInput.ResetPressed();
+            if (actionRingActive) CancelActionRing();
+            if (gestureActive)
+            {
+                gestureActive = false;
+                overlay.Hide();
+            }
+            if (liveLog.Checked)
+                AddLog(DateTime.Now.ToString("HH:mm:ss.fff") + " Switch host -> " + host + " (" + reason + ")");
+            ThreadPool.QueueUserWorkItem(delegate
+            {
+                bool sent = false;
+                try { sent = hidpp.ChangeHost(host); }
+                catch { }
+                try
+                {
+                    if (!IsHandleCreated || IsDisposed) return;
+                    BeginInvoke(new Action(delegate
+                    {
+                        if (liveLog.Checked)
+                            AddLog(DateTime.Now.ToString("HH:mm:ss.fff") + " Switch host sent=" + sent);
+                        if (!sent) return;
+                        hostCheck.Stop();
+                        hostCheck.Start();
+                    }));
+                }
+                catch { }
+            });
+        }
+
+        // The HID++ channel came up again after the first time: the mouse is back on this computer.
+        // With exactly one edge configured the pointer is put just inside it, as if it came in from
+        // that side. Which computer it came from is unknown, so several edges mean no move, and a
+        // reconnect right after the computer wakes up is left alone.
+        private void MouseArrived()
+        {
+            bool first = !readyOnce;
+            readyOnce = true;
+            int now = Environment.TickCount;
+            if (first || !MouseHook.Enabled || !edgeSwitch.Checked || !edgePlaceCursor.Checked) return;
+            if (unchecked(now - lastResume) < 60000 || unchecked(now - lastArrival) < 5000) return;
+            lastArrival = now;
+            int only = -1, configured = 0;
+            for (int i = 0; i < edgeHosts.Length; i++)
+            {
+                if (edgeHosts[i] < 0) continue;
+                only = i;
+                configured++;
+            }
+            Point target;
+            if (configured != 1 || !EdgeGeometry.TryGetArrivalPoint((ScreenEdge)only, Cursor.Position, screenBounds, S(24), out target)) return;
+            Cursor.Position = target;
+            edgeCooldownUntil = unchecked(now + 1000);
+            if (liveLog.Checked)
+                AddLog(DateTime.Now.ToString("HH:mm:ss.fff") + " Mouse arrived; pointer placed at " + (ScreenEdge)only + " edge");
+        }
+
+        [DllImport("user32.dll")] private static extern short GetAsyncKeyState(int virtualKey);
+
+        // The mouse sent something after a pause: it may have just come back from another host.
+        private void OnMouseActivity()
+        {
+            if (hidpp != null) hidpp.Recheck();
         }
 
         private void OnHidppStatus(string text)
@@ -2723,6 +3557,9 @@ namespace MXMasterPortable
         {
             MouseHook.Enabled = !MouseHook.Enabled;
             if (actionRingActive) CancelActionRing();
+            edgePushing = false;
+            deferredPending = false;
+            heldInputs.Clear();
             hidpp.SetEnabled(MouseHook.Enabled);
             UpdateTrayText();
             enableSwitch.Checked = MouseHook.Enabled;
@@ -2758,6 +3595,14 @@ namespace MXMasterPortable
             tray.Visible = false;
             diagnostics.Dispose();
             batteryTimer.Stop();
+            hostCheck.Stop();
+            Microsoft.Win32.SystemEvents.PowerModeChanged -= powerHandler;
+            Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= displayHandler;
+            if (appearanceSave.Enabled)
+            {
+                appearanceSave.Stop();
+                SaveSettings();
+            }
             hidpp.Dispose();
             rawInput.Dispose();
             MouseHook.Uninstall();
@@ -2795,12 +3640,15 @@ namespace MXMasterPortable
             Show();
         }
 
+        // Names of the actions bound to up, right, down and left, in that order.
+        public string[] Names = { "", "", "", "" };
+
         public void SetDirection(string direction)
         {
-            if (direction == "左") label.Text = Lang.T("←  上一頁", "←  Back");
-            else if (direction == "右") label.Text = Lang.T("下一頁  →", "Forward  →");
-            else if (direction == "上") label.Text = Lang.T("↑  工作檢視", "↑  Task View");
-            else if (direction == "下") label.Text = Lang.T("↓  顯示桌面", "↓  Show desktop");
+            if (direction == "左") label.Text = "←  " + Names[3];
+            else if (direction == "右") label.Text = Names[1] + "  →";
+            else if (direction == "上") label.Text = "↑  " + Names[0];
+            else if (direction == "下") label.Text = "↓  " + Names[2];
             else if (direction == "斜") label.Text = Lang.T("方向不明\r\n請往單一方向直線移動", "Unclear direction\r\nMove in one straight line");
             else label.Text = Lang.T("按住並往 上／下／左／右 移動", "Hold and move up, down, left or right");
         }
@@ -2845,7 +3693,10 @@ namespace MXMasterPortable
         private const float ShadowSize = 14F;
         private const float GapDegrees = 3F;
 
-        private readonly float scale;
+        private readonly float dpiScale;
+        private float scale;
+        private float bubbleFactor = 1F;
+        private int maxAlpha = 255;
         private readonly string iconFont;
         private readonly System.Windows.Forms.Timer fade = new System.Windows.Forms.Timer();
         private Bitmap frame;
@@ -2858,21 +3709,39 @@ namespace MXMasterPortable
 
         public ActionRingOverlay()
         {
-            scale = Theme.GetScale();
+            dpiScale = Theme.GetScale();
+            scale = dpiScale;
             iconFont = Theme.IconFont;
             FormBorderStyle = FormBorderStyle.None;
             ShowInTaskbar = false;
             TopMost = true;
             StartPosition = FormStartPosition.Manual;
+            // A borderless form would otherwise be held to the system minimum window size.
+            MinimumSize = new Size(1, 1);
             int side = (int)Math.Ceiling((OuterRadius + PopOut + ShadowSize) * 2F * scale);
             Size = new Size(side, side);
             fade.Interval = 15;
             fade.Tick += delegate
             {
-                alpha = Math.Min(255, alpha + 64);
-                if (alpha >= 255) fade.Stop();
+                alpha = Math.Min(maxAlpha, alpha + 64);
+                if (alpha >= maxAlpha) fade.Stop();
                 Push();
             };
+        }
+
+        // Bubble style: one round icon per slot; the name shows only for the slot under the pointer.
+        public bool Bubbles;
+
+        // sizeFactor and bubble are multipliers of the design size; opacityValue is 0.4-1.
+        public void Configure(bool bubbles, float sizeFactor, float bubble, float opacityValue)
+        {
+            Bubbles = bubbles;
+            bubbleFactor = bubble;
+            maxAlpha = (int)Math.Round(255F * Math.Max(0.4F, Math.Min(1F, opacityValue)));
+            scale = dpiScale * sizeFactor;
+            int side = (int)Math.Ceiling((OuterRadius + PopOut + ShadowSize) * 2F * scale);
+            Size = new Size(side, side);
+            if (Visible) Redraw();
         }
 
         // A per-pixel-alpha layered window: smooth edges and a soft shadow, and it never takes
@@ -3101,8 +3970,109 @@ namespace MXMasterPortable
             return path;
         }
 
+        // Eight round icons on a circle. Hit-testing stays the same eight directions as the ring.
+        private Bitmap RenderBubbles()
+        {
+            int side = Width;
+            float c = side / 2F;
+            float outer = OuterRadius * scale;
+            float bubble = 35F * bubbleFactor * scale;
+            // Larger bubbles push the circle outwards so neighbours keep a small gap.
+            float orbit = Math.Max(outer * 0.74F, (bubble * 2F + 8F * scale) * 8F / (2F * (float)Math.PI));
+            var bitmap = new Bitmap(side, side, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            using (Graphics g = Graphics.FromImage(bitmap))
+            using (var center = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+            using (var glyphFont = new Font(iconFont ?? Theme.UiFont, Math.Max(8F, 23F * bubbleFactor * scale), FontStyle.Regular, GraphicsUnit.Pixel))
+            using (var textFont = new Font(Theme.UiFont, Math.Max(8F, 10.5F * bubbleFactor * scale), FontStyle.Bold, GraphicsUnit.Pixel))
+            using (var nameFont = new Font(Theme.UiFont, Math.Max(12F, 14.5F * scale), FontStyle.Bold, GraphicsUnit.Pixel))
+            using (var white = new SolidBrush(Color.White))
+            using (var soft = new SolidBrush(Color.FromArgb(214, 221, 236)))
+            using (var muted = new SolidBrush(Color.FromArgb(138, 148, 170)))
+            using (var normal = new SolidBrush(Color.FromArgb(240, 30, 34, 47)))
+            using (var shadow = new SolidBrush(Color.FromArgb(12, 0, 0, 0)))
+            using (var edge = new Pen(Color.FromArgb(70, 255, 255, 255), Math.Max(1F, 1.2F * scale)))
+            using (var chosenEdge = new Pen(Color.FromArgb(120, 255, 255, 255), Math.Max(1F, 1.4F * scale)))
+            {
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
+                g.Clear(Color.Transparent);
+
+                for (int i = 0; i < 8; i++)
+                {
+                    bool selected = i == selectedIndex;
+                    double angle = (-90.0 + i * 45.0) * Math.PI / 180.0;
+                    float x = c + (float)Math.Cos(angle) * orbit;
+                    float y = c + (float)Math.Sin(angle) * orbit;
+                    float r = selected ? bubble + 4.5F * scale : bubble;
+                    for (int k = 5; k >= 1; k--)
+                    {
+                        float grow = r + k * 1.3F * scale;
+                        g.FillEllipse(shadow, x - grow, y - grow + 2F * scale, grow * 2F, grow * 2F);
+                    }
+                    var circle = new RectangleF(x - r, y - r, r * 2F, r * 2F);
+                    if (selected)
+                    {
+                        using (var glow = new LinearGradientBrush(circle, Color.FromArgb(250, 64, 140, 255), Color.FromArgb(250, 24, 92, 220), 60F))
+                            g.FillEllipse(glow, circle);
+                    }
+                    else g.FillEllipse(normal, circle);
+                    g.DrawEllipse(selected ? chosenEdge : edge, circle);
+
+                    ActionBinding slot = slots[i];
+                    string glyph = iconFont == null || slot.IsPassThrough ? "" : Glyph(slot.Action);
+                    Brush ink = selected ? white : slot.IsPassThrough ? muted : soft;
+                    // Without the icon font (or for an unset slot) the short name goes inside the bubble.
+                    if (glyph.Length > 0)
+                    {
+                        // DrawString pads the text box and follows the font's line metrics, which leaves
+                        // icon glyphs off-centre. Centre the glyph's actual outline on the bubble instead.
+                        using (var outline = new GraphicsPath())
+                        {
+                            outline.AddString(glyph, glyphFont.FontFamily, (int)FontStyle.Regular, glyphFont.Size,
+                                PointF.Empty, StringFormat.GenericTypographic);
+                            RectangleF bounds = outline.GetBounds();
+                            using (var move = new Matrix())
+                            {
+                                move.Translate(x - (bounds.Left + bounds.Width / 2F), y - (bounds.Top + bounds.Height / 2F));
+                                outline.Transform(move);
+                            }
+                            g.FillPath(ink, outline);
+                        }
+                    }
+                    else g.DrawString(labels[i], textFont, ink, circle, center);
+                }
+
+                if (selectedIndex >= 0)
+                {
+                    string name = labels[selectedIndex];
+                    float width = Math.Min(g.MeasureString(name, nameFont).Width + 26F * scale, Math.Max(60F * scale, (orbit - bubble) * 2F - 6F * scale));
+                    float height = Math.Max(26F, 32F * scale);
+                    var pill = new RectangleF(c - width / 2F, c - height / 2F, width, height);
+                    using (var back = new SolidBrush(Color.FromArgb(246, 20, 23, 33)))
+                    using (GraphicsPath shape = Theme.RoundedRectangle(pill, height / 2F - 0.5F))
+                        g.FillPath(back, shape);
+                    using (var single = new StringFormat(center) { FormatFlags = StringFormatFlags.NoWrap, Trimming = StringTrimming.EllipsisCharacter })
+                        g.DrawString(name, nameFont, white, pill, single);
+                }
+                else
+                {
+                    // A small dot marks the centre, where releasing or clicking cancels.
+                    float dot = Math.Max(5F, 8F * scale);
+                    using (var back = new SolidBrush(Color.FromArgb(190, 20, 23, 33)))
+                    using (var ring = new Pen(Color.FromArgb(130, 255, 255, 255), Math.Max(1F, 1.4F * scale)))
+                    {
+                        g.FillEllipse(back, c - dot, c - dot, dot * 2F, dot * 2F);
+                        g.DrawEllipse(ring, c - dot, c - dot, dot * 2F, dot * 2F);
+                    }
+                }
+            }
+            return bitmap;
+        }
+
         internal Bitmap RenderFrame()
         {
+            if (Bubbles && !showNumbers) return RenderBubbles();
             int side = Width;
             float c = side / 2F;
             float outer = OuterRadius * scale;
@@ -3462,6 +4432,99 @@ namespace MXMasterPortable
         private static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
     }
 
+    // A host stored on one of the mouse's Easy-Switch channels.
+    internal sealed class HostEntry
+    {
+        public int Index;
+        public string Name = "";
+        public bool Paired;
+        public int Bus;     // 4 = Bluetooth, 5 = Logi Bolt (matched against replies captured from the mouse)
+
+        public string BusName
+        {
+            get { return Bus == 4 ? "Bluetooth" : Bus == 5 ? "Logi Bolt" : ""; }
+        }
+    }
+
+    internal enum ScreenEdge { Left, Right, Top, Bottom }
+
+    // Which outer edge of the desktop the pointer is touching. With several monitors only the
+    // outer edge of the outermost monitor counts; edges where two monitors meet never do.
+    internal static class EdgeGeometry
+    {
+        private static Rectangle Union(Rectangle[] screens)
+        {
+            Rectangle all = screens[0];
+            for (int i = 1; i < screens.Length; i++) all = Rectangle.Union(all, screens[i]);
+            return all;
+        }
+
+        private static bool Outermost(Rectangle screen, ScreenEdge edge, Rectangle all)
+        {
+            switch (edge)
+            {
+                case ScreenEdge.Left: return screen.Left <= all.Left;
+                case ScreenEdge.Right: return screen.Right >= all.Right;
+                case ScreenEdge.Top: return screen.Top <= all.Top;
+                default: return screen.Bottom >= all.Bottom;
+            }
+        }
+
+        // A corner touches two edges at once and is ignored.
+        public static bool TryGetEdge(Point point, Rectangle[] screens, out ScreenEdge edge)
+        {
+            edge = ScreenEdge.Left;
+            if (screens == null || screens.Length == 0) return false;
+            Rectangle all = Union(screens);
+            foreach (Rectangle screen in screens)
+            {
+                if (!Rectangle.Inflate(screen, 1, 1).Contains(point)) continue;
+                int found = 0;
+                // The pointer's range is Left ... Right-1, so the right and bottom sides get one more pixel.
+                if (point.X <= screen.Left + 1 && Outermost(screen, ScreenEdge.Left, all)) { edge = ScreenEdge.Left; found++; }
+                if (point.X >= screen.Right - 2 && Outermost(screen, ScreenEdge.Right, all)) { edge = ScreenEdge.Right; found++; }
+                if (point.Y <= screen.Top + 1 && Outermost(screen, ScreenEdge.Top, all)) { edge = ScreenEdge.Top; found++; }
+                if (point.Y >= screen.Bottom - 2 && Outermost(screen, ScreenEdge.Bottom, all)) { edge = ScreenEdge.Bottom; found++; }
+                return found == 1;
+            }
+            return false;
+        }
+
+        // Where to put the pointer when the mouse comes back: just inside the given outer edge,
+        // keeping its position along the edge when that still falls on the monitor.
+        public static bool TryGetArrivalPoint(ScreenEdge edge, Point near, Rectangle[] screens, int inset, out Point result)
+        {
+            result = near;
+            if (screens == null || screens.Length == 0) return false;
+            Rectangle all = Union(screens);
+            bool horizontal = edge == ScreenEdge.Left || edge == ScreenEdge.Right;
+            bool have = false;
+            Rectangle chosen = screens[0];
+            foreach (Rectangle screen in screens)
+            {
+                if (!Outermost(screen, edge, all)) continue;
+                bool spans = horizontal ? near.Y >= screen.Top && near.Y < screen.Bottom : near.X >= screen.Left && near.X < screen.Right;
+                if (!have || spans)
+                {
+                    chosen = screen;
+                    have = true;
+                    if (spans) break;
+                }
+            }
+            if (!have) return false;
+            int x = Math.Min(Math.Max(near.X, chosen.Left + inset), chosen.Right - 1 - inset);
+            int y = Math.Min(Math.Max(near.Y, chosen.Top + inset), chosen.Bottom - 1 - inset);
+            switch (edge)
+            {
+                case ScreenEdge.Left: result = new Point(chosen.Left + inset, y); break;
+                case ScreenEdge.Right: result = new Point(chosen.Right - 1 - inset, y); break;
+                case ScreenEdge.Top: result = new Point(x, chosen.Top + inset); break;
+                default: result = new Point(x, chosen.Bottom - 1 - inset); break;
+            }
+            return true;
+        }
+    }
+
     internal enum MouseHookKind
     {
         Move, LeftDown, LeftUp, RightDown, RightUp, MiddleDown, MiddleUp, XButton1Down, XButton1Up, XButton2Down, XButton2Up, WheelLeft, WheelRight, Other
@@ -3568,6 +4631,9 @@ namespace MXMasterPortable
         private int deviceIndex = -1;
         private int featureIndex = -1;
         private readonly List<int> divertedControls = new List<int>();
+        private int recheckBusy;
+        private int silentChecks;
+        private int lastBoltIndex = -1;
 
         public HidppDiversionManager(Action<string> reportAction, Action<int, int> readyAction)
         {
@@ -3580,7 +4646,7 @@ namespace MXMasterPortable
             if (worker != null) return;
             worker = new Thread(Initialize);
             worker.IsBackground = true;
-            worker.Name = "MXMasterPortable HID++";
+            worker.Name = "MXMasterWIN HID++";
             worker.Start();
         }
 
@@ -3594,7 +4660,8 @@ namespace MXMasterPortable
                     if (disposed || transport == null || featureIndex < 0) return;
                     // Multiple tray toggles can queue worker threads in a different order.
                     // Always apply the newest requested state once the lock is acquired.
-                    ApplyDiversion(desiredEnabled);
+                    try { ApplyDiversion(desiredEnabled); }
+                    catch { }
                 }
             }));
             thread.IsBackground = true;
@@ -3608,70 +4675,181 @@ namespace MXMasterPortable
                 lock (sync)
                 {
                     if (disposed) return;
-                    List<HidTransport> transports = HidTransport.FindMxMasterTransports(Report);
-                    foreach (HidTransport candidateTransport in transports)
-                    {
-                        if (disposed)
-                        {
-                            candidateTransport.Dispose();
-                            continue;
-                        }
-
-                        int[] candidateDevices = candidateTransport.IsBolt
-                            ? new[] { 1, 2, 3, 4, 5, 6 }
-                            : new[] { 0xFF };
-
-                        foreach (int candidateDevice in candidateDevices)
-                        {
-                            byte[] root = candidateTransport.Request(candidateDevice, 0, 0, SoftwareId,
-                                // A sleeping Bolt device can take about one second to wake and answer.
-                                new byte[] { (byte)(TargetFeature >> 8), (byte)(TargetFeature & 0xFF), 0 }, 1800);
-                            if (root == null || root.Length < 7 || root[4] == 0) continue;
-                            transport = candidateTransport;
-                            deviceIndex = candidateDevice;
-                            featureIndex = root[4];
-                            int version = root[6];
-                            Report(transport.Name + " dev=" + deviceIndex.ToString("X2") +
-                                " feature 1B04 index=" + featureIndex.ToString("X2") + " v" + version);
-                            break;
-                        }
-
-                        if (transport == candidateTransport) break;
-                        candidateTransport.Dispose();
-                    }
-
-                    foreach (HidTransport candidateTransport in transports)
-                    {
-                        if (candidateTransport != transport) candidateTransport.Dispose();
-                    }
-
-                    if (transport == null)
-                    {
-                        Report(ProblemMark + (transports.Count == 0
-                            ? Lang.T("找不到可寫入的 Logitech HID++ 長報告介面", "No writable Logitech HID++ long-report interface was found")
-                            : Lang.T("找到 HID++ 長報告介面，但找不到支援 1B04 的 MX Master 4 通道",
-                                "A HID++ interface was found, but no MX Master 4 channel supporting 1B04")));
-                        return;
-                    }
-
-                    DiscoverDivertableControls();
-                    if (divertedControls.Count == 0)
-                    {
-                        Report(ProblemMark + Lang.T("裝置沒有回報可 diversion 的 C3／1A0 控制",
-                            "The device reported no divertable C3 / 1A0 controls"));
-                        return;
-                    }
-
-                    if (!ApplyDiversion(desiredEnabled)) return;
-                    ready(deviceIndex, featureIndex);
-                    Report(ReadyMark + transport.Name + " special buttons diverted (" +
-                        String.Join(", ", divertedControls.ConvertAll(delegate(int c) { return c.ToString("X4"); }).ToArray()) + ")");
+                    Connect();
                 }
             }
             catch (Exception ex)
             {
                 Report(ProblemMark + Lang.T("HID++ 初始化失敗：", "HID++ initialisation failed: ") + ex.Message);
             }
+        }
+
+        // Temporary diversion only lasts for the mouse's current connection: it is gone after the
+        // mouse switches to another host and back, or reconnects after sleep or power-off. Called
+        // when the mouse shows activity after a pause; puts the diversion back if it was dropped.
+        public void Recheck()
+        {
+            if (disposed || worker == null) return;
+            if (Interlocked.Exchange(ref recheckBusy, 1) != 0) return;
+            Thread thread = new Thread(new ThreadStart(delegate
+            {
+                try
+                {
+                    // HID++ may not answer yet right after the first input report of a reconnect.
+                    for (int attempt = 0; attempt < 4 && !disposed; attempt++)
+                    {
+                        if (attempt > 0) Thread.Sleep(1500);
+                        bool settled;
+                        try { settled = EnsureDiversion(); }
+                        catch (Exception ex)
+                        {
+                            settled = false;
+                            Report("recheck failed: " + ex.Message);
+                        }
+                        if (settled) break;
+                    }
+                }
+                finally { Interlocked.Exchange(ref recheckBusy, 0); }
+            }));
+            thread.IsBackground = true;
+            thread.Start();
+        }
+
+        // Returns true when nothing is left to do, false when the caller should try again.
+        private bool EnsureDiversion()
+        {
+            lock (sync)
+            {
+                if (disposed) return true;
+                if (transport != null && featureIndex >= 0 && divertedControls.Count > 0)
+                {
+                    // 1 = as requested, 0 = the mouse reports something else, -1 = no answer, -2 = handle unusable
+                    int state;
+                    try { state = ReadDiversionState(); }
+                    catch { state = -2; }
+                    if (state == 1)
+                    {
+                        silentChecks = 0;
+                        return true;
+                    }
+                    if (state == 0)
+                    {
+                        silentChecks = 0;
+                        Report("diversion state changed on the mouse (reconnected?); re-applying");
+                        if (!ApplyDiversion(desiredEnabled)) return false;
+                        ready(deviceIndex, featureIndex);
+                        Report(ReadyMark + transport.Name + " special buttons re-diverted");
+                        return true;
+                    }
+                    // A Bolt receiver stays plugged in after the mouse has moved to Bluetooth, so a silent
+                    // channel must be given up as well; Connect() then looks on every interface.
+                    if (state == -1 && ++silentChecks < 2) return false;
+                    Report("HID++ channel is not answering; reopening");
+                }
+                ResetConnection();
+                return Connect();
+            }
+        }
+
+        private int ReadDiversionState()
+        {
+            foreach (int cid in divertedControls)
+            {
+                byte[] state = transport.Request(deviceIndex, featureIndex, 2, SoftwareId,
+                    new byte[] { (byte)(cid >> 8), (byte)cid }, 700);
+                if (state == null || state.Length < 9 ||
+                    state[4] != (byte)(cid >> 8) || state[5] != (byte)cid) return -1;
+                if (((state[6] & 0x01) != 0) != desiredEnabled) return 0;
+            }
+            return 1;
+        }
+
+        private void ResetConnection()
+        {
+            if (transport != null)
+            {
+                transport.Dispose();
+                transport = null;
+            }
+            deviceIndex = -1;
+            featureIndex = -1;
+            silentChecks = 0;
+            divertedControls.Clear();
+            featureIndexes.Clear();
+            wheelCapability = null;
+        }
+
+        // Finds the mouse's HID++ channel and applies the requested diversion. Caller holds sync.
+        private bool Connect()
+        {
+            List<HidTransport> transports = HidTransport.FindMxMasterTransports(Report);
+            // The direct (Bluetooth) interface answers or times out with a single probe, while an
+            // empty receiver slot costs a full timeout each, so try Bluetooth first.
+            transports.Sort(delegate(HidTransport a, HidTransport b) { return a.IsBolt.CompareTo(b.IsBolt); });
+            foreach (HidTransport candidateTransport in transports)
+            {
+                if (disposed)
+                {
+                    candidateTransport.Dispose();
+                    continue;
+                }
+
+                int[] candidateDevices = new[] { 0xFF };
+                if (candidateTransport.IsBolt)
+                {
+                    // Start with the slot the mouse used last time.
+                    var slots = new List<int>(new[] { 1, 2, 3, 4, 5, 6 });
+                    if (slots.Remove(lastBoltIndex)) slots.Insert(0, lastBoltIndex);
+                    candidateDevices = slots.ToArray();
+                }
+
+                foreach (int candidateDevice in candidateDevices)
+                {
+                    byte[] root = candidateTransport.Request(candidateDevice, 0, 0, SoftwareId,
+                        // A sleeping Bolt device can take about one second to wake and answer.
+                        new byte[] { (byte)(TargetFeature >> 8), (byte)(TargetFeature & 0xFF), 0 }, 1800);
+                    if (root == null || root.Length < 7 || root[4] == 0) continue;
+                    transport = candidateTransport;
+                    deviceIndex = candidateDevice;
+                    if (candidateTransport.IsBolt) lastBoltIndex = candidateDevice;
+                    featureIndex = root[4];
+                    int version = root[6];
+                    Report(transport.Name + " dev=" + deviceIndex.ToString("X2") +
+                        " feature 1B04 index=" + featureIndex.ToString("X2") + " v" + version);
+                    break;
+                }
+
+                if (transport == candidateTransport) break;
+                candidateTransport.Dispose();
+            }
+
+            foreach (HidTransport candidateTransport in transports)
+            {
+                if (candidateTransport != transport) candidateTransport.Dispose();
+            }
+
+            if (transport == null)
+            {
+                Report(ProblemMark + (transports.Count == 0
+                    ? Lang.T("找不到可寫入的 Logitech HID++ 長報告介面", "No writable Logitech HID++ long-report interface was found")
+                    : Lang.T("找到 HID++ 長報告介面，但找不到支援 1B04 的 MX Master 4 通道",
+                        "A HID++ interface was found, but no MX Master 4 channel supporting 1B04")));
+                return false;
+            }
+
+            DiscoverDivertableControls();
+            if (divertedControls.Count == 0)
+            {
+                Report(ProblemMark + Lang.T("裝置沒有回報可 diversion 的 C3／1A0 控制",
+                    "The device reported no divertable C3 / 1A0 controls"));
+                return false;
+            }
+
+            if (!ApplyDiversion(desiredEnabled)) return false;
+            ready(deviceIndex, featureIndex);
+            Report(ReadyMark + transport.Name + " special buttons diverted (" +
+                String.Join(", ", divertedControls.ConvertAll(delegate(int c) { return c.ToString("X4"); }).ToArray()) + ")");
+            return true;
         }
 
         private void DiscoverDivertableControls()
@@ -3975,6 +5153,85 @@ namespace MXMasterPortable
                     return level <= 0 ? !enabled : enabled && check[5] == level;
                 }
                 catch { return false; }
+            }
+        }
+
+        // ---- Easy-Switch hosts (0x1814 Change Host, 0x1815 Hosts Info; byte layouts follow Solaar) ----
+
+        // The host stored on each channel and the channel the mouse is on now (-1 when unknown).
+        public List<HostEntry> ReadHosts(out int current)
+        {
+            current = -1;
+            var hosts = new List<HostEntry>();
+            lock (sync)
+            {
+                if (disposed || transport == null || deviceIndex < 0) return hosts;
+                try
+                {
+                    byte[] info = Call(0x1814, 0);
+                    if (info == null) return hosts;
+                    current = info[5];
+                    int count = Math.Min((int)info[4], 8);
+                    var summary = new StringBuilder();
+                    for (int i = 0; i < count; i++)
+                    {
+                        var entry = new HostEntry { Index = i };
+                        byte[] host = Call(0x1815, 1, (byte)i);
+                        if (host != null)
+                        {
+                            entry.Paired = host[5] != 0;
+                            entry.Bus = host[6];
+                            int length = host[8];
+                            var name = new List<byte>();
+                            while (name.Count < length)
+                            {
+                                byte[] piece = Call(0x1815, 3, (byte)i, (byte)name.Count);
+                                if (piece == null) break;
+                                int take = Math.Min(length - name.Count, piece.Length - 6);
+                                if (take <= 0) break;
+                                for (int k = 0; k < take; k++) name.Add(piece[6 + k]);
+                            }
+                            entry.Name = Encoding.UTF8.GetString(name.ToArray());
+                        }
+                        hosts.Add(entry);
+                        summary.Append(" " + i + ":" + (entry.Name.Length == 0 ? "-" : entry.Name) + "/" + entry.Bus);
+                    }
+                    Report("hosts current=" + current + summary);
+                }
+                catch (Exception ex)
+                {
+                    Report("hosts read failed: " + ex.Message);
+                }
+            }
+            return hosts;
+        }
+
+        // Moves the mouse to another channel. It leaves this computer at once and sometimes has no
+        // time to answer, so a request that went out counts as done. The channel is dropped here and
+        // found again by Recheck() when the mouse shows activity on this computer.
+        public bool ChangeHost(int host)
+        {
+            lock (sync)
+            {
+                if (disposed || transport == null || deviceIndex < 0) return false;
+                try
+                {
+                    int index = FindFeature(0x1814);
+                    if (index < 0) return false;
+                    byte[] info = transport.Request(deviceIndex, index, 0, SoftwareId, new byte[0], 900);
+                    if (info == null || info.Length < 6 || host < 0 || host >= info[4] || host == info[5]) return false;
+                    Report("change host " + info[5] + " -> " + host);
+                    try { transport.Request(deviceIndex, index, 1, SoftwareId, new byte[] { (byte)host }, 300); }
+                    catch (Exception ex) { Report("change host: " + ex.Message); }
+                    ResetConnection();
+                    Report(ProblemMark + Lang.T("滑鼠已切到另一台電腦", "The mouse has moved to another computer"));
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    Report("change host failed: " + ex.Message);
+                    return false;
+                }
             }
         }
 
@@ -4398,8 +5655,11 @@ namespace MXMasterPortable
 
             Controls.Add(new Label { Text = Lang.T("捲動方向", "Scroll direction"), AutoSize = true, Location = new Point(S(20), S(283)) });
             wheelDirection.DropDownStyle = ComboBoxStyle.DropDownList;
+            // Index 0 is the mouse's own direction, index 1 the inverted one. Windows does not flip
+            // scrolling itself, so the device direction is "standard" and the inverted one "natural"
+            // (on macOS, where the system flips it, the two names are the other way round).
             wheelDirection.Items.Add(Lang.T("標準", "Standard"));
-            wheelDirection.Items.Add(Lang.T("反轉", "Inverted"));
+            wheelDirection.Items.Add(Lang.T("自然", "Natural"));
             wheelDirection.Location = new Point(S(150), S(280));
             wheelDirection.Width = S(210);
             Controls.Add(wheelDirection);
@@ -4634,16 +5894,31 @@ namespace MXMasterPortable
         private readonly Dictionary<int, HashSet<int>> divertedPressed = new Dictionary<int, HashSet<int>>();
         private volatile int divertedDeviceIndex = -1;
         private volatile int divertedFeatureIndex = -1;
+        private readonly Action activity;
+        private readonly Action<int, int> mouseMove;
+        private int lastMxInput;
+        private bool sawMxInput;
+        // A host switch or reconnect always leaves at least this long without any report.
+        private const int ActivityGapMilliseconds = 2000;
         private const int WM_INPUT = 0x00FF;
         private const uint RID_INPUT = 0x10000003, RIDI_DEVICENAME = 0x20000007;
         private const uint RIDEV_INPUTSINK = 0x00000100, RIDEV_PAGEONLY = 0x00000020;
 
-        public RawInputMonitor(IntPtr handle, Action<string> reportAction, Action<string, int, int, bool> vendorButtonAction)
+        public RawInputMonitor(IntPtr handle, Action<string> reportAction, Action<string, int, int, bool> vendorButtonAction,
+            Action activityAction, Action<int, int> mouseMoveAction)
         {
             AssignHandle(handle);
             report = reportAction;
             vendorButton = vendorButtonAction;
+            activity = activityAction;
+            mouseMove = mouseMoveAction;
             Register(handle);
+        }
+
+        // Time since the mouse last sent anything; a large value when it never has.
+        public int MillisecondsSinceInput
+        {
+            get { return sawMxInput ? unchecked(Environment.TickCount - lastMxInput) : int.MaxValue; }
         }
 
         public static bool IsMxMaster4Present()
@@ -4671,6 +5946,11 @@ namespace MXMasterPortable
         {
             divertedDeviceIndex = deviceIndex;
             divertedFeatureIndex = featureIndex;
+        }
+
+        public void ResetPressed()
+        {
+            divertedPressed.Clear();
         }
 
         private static void Register(IntPtr handle)
@@ -4706,6 +5986,11 @@ namespace MXMasterPortable
                     names[header.hDevice] = name;
                 }
                 if (!IsMx(name)) return;
+                int now = Environment.TickCount;
+                bool resumed = !sawMxInput || unchecked(now - lastMxInput) >= ActivityGapMilliseconds;
+                sawMxInput = true;
+                lastMxInput = now;
+                if (resumed) activity();
                 string transport = TransportName(name);
                 int offset = Marshal.SizeOf(typeof(RAWINPUTHEADER));
                 if (header.dwType == 0)
@@ -4714,6 +5999,9 @@ namespace MXMasterPortable
                     // Movement-only packets are too noisy for button mapping.
                     if (mouse.usButtonFlags != 0)
                         report(transport + " MOUSE flags=0x" + mouse.usButtonFlags.ToString("X4") + " data=" + mouse.usButtonData + " dx=" + mouse.lLastX + " dy=" + mouse.lLastY);
+                    // Relative movement of this mouse only (bit 0 of usFlags marks absolute coordinates).
+                    if ((mouse.usFlags & 1) == 0 && (mouse.lLastX != 0 || mouse.lLastY != 0))
+                        mouseMove(mouse.lLastX, mouse.lLastY);
                 }
                 else if (header.dwType == 2)
                 {
