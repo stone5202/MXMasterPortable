@@ -1,4 +1,4 @@
-# Generates src\app.ico (multi-size) and src\app.png (256 px logo) for MX Master Portable.
+# Generates src\app.ico (multi-size) and src\app.png (256 px logo) for MX Master WIN.
 # Uses only System.Drawing from the in-box .NET Framework; no external tools.
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
