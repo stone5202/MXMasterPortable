@@ -11,7 +11,7 @@ using System.Threading;
 using System.Windows.Forms;
 using Microsoft.Win32.SafeHandles;
 
-namespace MXMasterWIN
+namespace MXMasterWin
 {
     internal static class Program
     {
@@ -877,7 +877,7 @@ namespace MXMasterWIN
     {
         private static string LinkPath
         {
-            get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup), "MX Master WIN.lnk"); }
+            get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup), "MX Master Win.lnk"); }
         }
 
         // The shortcut written by versions before 2.0 (MX Master Portable).
@@ -907,7 +907,7 @@ namespace MXMasterWIN
                 var shell = (IShellLinkW)link;
                 shell.SetPath(exe);
                 shell.SetWorkingDirectory(Path.GetDirectoryName(exe));
-                shell.SetDescription("MX Master WIN");
+                shell.SetDescription("MX Master Win");
                 shell.SetIconLocation(exe, 0);
                 ((System.Runtime.InteropServices.ComTypes.IPersistFile)link).Save(LinkPath, false);
                 if (File.Exists(OldLinkPath)) File.Delete(OldLinkPath);
@@ -1093,7 +1093,7 @@ namespace MXMasterWIN
         {
             try
             {
-                using (Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("MXMasterWIN.app.ico"))
+                using (Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("MXMasterWin.app.ico"))
                 {
                     if (stream != null) return new Icon(stream);
                 }
@@ -1106,7 +1106,7 @@ namespace MXMasterWIN
         {
             try
             {
-                using (Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("MXMasterWIN.app.png"))
+                using (Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("MXMasterWin.app.png"))
                 {
                     if (stream != null)
                     {
@@ -1383,7 +1383,7 @@ namespace MXMasterWIN
             float scale = Theme.GetScale();
             Func<int, int> s = delegate(int v) { return (int)Math.Round(v * scale); };
 
-            Text = Lang.T("MX Master WIN — 工程模式", "MX Master WIN — Engineering mode");
+            Text = Lang.T("MX Master Win — 工程模式", "MX Master Win — Engineering mode");
             Icon = icon;
             Font = new Font(Theme.UiFont, 9.5F);
             BackColor = Theme.Console;
@@ -1959,7 +1959,7 @@ namespace MXMasterWIN
 
         public MainForm()
         {
-            Text = "MX Master WIN";
+            Text = "MX Master Win";
             uiScale = Theme.GetScale();
             Font = new Font(Theme.UiFont, 9.5F);
             BackColor = Theme.Page;
@@ -2045,7 +2045,7 @@ namespace MXMasterWIN
             }
 
             tray.Icon = new Icon(appIcon, SystemInformation.SmallIconSize);
-            tray.Text = "MX Master WIN";
+            tray.Text = "MX Master Win";
             tray.Visible = true;
             tray.DoubleClick += delegate { ShowWindow(); };
             var menu = new ContextMenuStrip();
@@ -2084,7 +2084,7 @@ namespace MXMasterWIN
                 SaveSettings();
                 try
                 {
-                    tray.ShowBalloonTip(4000, "MX Master WIN",
+                    tray.ShowBalloonTip(4000, "MX Master Win",
                         Lang.T("已在系統匣執行。按兩下系統匣圖示可開啟設定。", "Running in the tray. Double-click the tray icon to open settings."), ToolTipIcon.Info);
                 }
                 catch { }
@@ -2181,7 +2181,7 @@ namespace MXMasterWIN
 
         private void UpdateTrayText()
         {
-            string text = MouseHook.Enabled ? "MX Master WIN" : Lang.T("MX Master WIN（已暫停）", "MX Master WIN (paused)");
+            string text = MouseHook.Enabled ? "MX Master Win" : Lang.T("MX Master Win（已暫停）", "MX Master Win (paused)");
             if (batteryText.Length > 0) text += "\n" + batteryText;
             tray.Text = text.Length > 63 ? text.Substring(0, 63) : text;
         }
@@ -2214,7 +2214,7 @@ namespace MXMasterWIN
             });
             Controls.Add(new Label
             {
-                Text = Lang.T("MX Master WIN　免安裝的按鍵、手勢與圓環自訂工具", "MX Master WIN  ·  portable button, gesture and ring customizer"),
+                Text = Lang.T("MX Master Win　免安裝的按鍵、手勢與圓環自訂工具", "MX Master Win  ·  portable button, gesture and ring customizer"),
                 AutoSize = true,
                 ForeColor = Theme.Muted,
                 Font = new Font(Theme.UiFont, 9F),
@@ -2507,7 +2507,7 @@ namespace MXMasterWIN
 
             advancedPage.Controls.Add(new Label
             {
-                Text = Lang.T("關於", "About") + "　MX Master WIN " + Program.Version + Lang.T("　免安裝、免管理員權限，不安裝驅動或服務", "    Portable, no admin rights, no driver or service"),
+                Text = Lang.T("關於", "About") + "　MX Master Win " + Program.Version + Lang.T("　免安裝、免管理員權限，不安裝驅動或服務", "    Portable, no admin rights, no driver or service"),
                 AutoSize = true,
                 Location = new Point(S(18), S(412))
             });
@@ -2545,7 +2545,7 @@ namespace MXMasterWIN
                 {
                     try
                     {
-                        File.WriteAllText(diagnosticLogPath, "MX Master WIN diagnostic capture\r\n", Encoding.UTF8);
+                        File.WriteAllText(diagnosticLogPath, "MX Master Win diagnostic capture\r\n", Encoding.UTF8);
                         AddLog(DateTime.Now.ToString("HH:mm:ss.fff") + " Diagnostics enabled; movement-only events are filtered.");
                         AddLog(DateTime.Now.ToString("HH:mm:ss.fff") + " Log file: " + diagnosticLogPath);
                     }
@@ -2627,7 +2627,7 @@ namespace MXMasterWIN
             eventLog.Items.Clear();
             if (liveLog.Checked)
             {
-                try { File.WriteAllText(diagnosticLogPath, "MX Master WIN diagnostic capture\r\n", Encoding.UTF8); }
+                try { File.WriteAllText(diagnosticLogPath, "MX Master Win diagnostic capture\r\n", Encoding.UTF8); }
                 catch { }
                 AddLog(DateTime.Now.ToString("HH:mm:ss.fff") + " Capture cleared; waiting for input...");
             }
@@ -2647,7 +2647,7 @@ namespace MXMasterWIN
             // Shown once ever, so the user knows where the window went.
             trayHintShown = true;
             SaveSettings();
-            try { tray.ShowBalloonTip(4000, "MX Master WIN", Lang.T("程式仍在背景執行。可從系統匣圖示開啟設定或結束。", "Still running in the background. Use the tray icon to open settings or exit."), ToolTipIcon.Info); }
+            try { tray.ShowBalloonTip(4000, "MX Master Win", Lang.T("程式仍在背景執行。可從系統匣圖示開啟設定或結束。", "Still running in the background. Use the tray icon to open settings or exit."), ToolTipIcon.Info); }
             catch { }
         }
 
@@ -2959,7 +2959,7 @@ namespace MXMasterWIN
             try
             {
                 var lines = new List<string>();
-                lines.Add("# MX Master WIN settings");
+                lines.Add("# MX Master Win settings");
                 foreach (var pair in selectors)
                 {
                     ActionBinding binding = pair.Value.Binding;
@@ -4646,7 +4646,7 @@ namespace MXMasterWIN
             if (worker != null) return;
             worker = new Thread(Initialize);
             worker.IsBackground = true;
-            worker.Name = "MXMasterWIN HID++";
+            worker.Name = "MXMasterWin HID++";
             worker.Start();
         }
 
