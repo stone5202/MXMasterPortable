@@ -4,6 +4,14 @@
   <a href="CHANGELOG.md">繁體中文</a> · <strong>English</strong>
 </p>
 
+## 1.1 — 2026-10-13
+
+- Pointer & Wheel page: added wheel scroll direction (Standard / Inverted); the applied value is saved and re-applied at the next start.
+- Actions Ring: added a click-to-choose mode. Press the Actions Ring button once to show the ring, then left-click a slice, with no holding; clicking the centre, clicking outside, right-clicking or pressing the button again cancels.
+- Added 30 built-in actions for buttons and the ring: previous / next track, File Explorer, Windows Settings, Calculator, Task Manager, Windows Search, Start menu, new / close / reopen tab, refresh, zoom in / out, screenshot, emoji panel, clipboard history, lock PC, quick settings, minimize / maximize / close / snap window, select all, save, find, Delete, type today's date, type the current time.
+- The Customize ring dialog now has a picture guide: a ring numbered 1–8 on the left and matching numbers on the rows; hovering either side highlights both, and clicking a slice opens that position.
+- Fixed: with Logi Options+ running at the same time, one press of a special button could be handled twice.
+
 ## 1.0 — 2026-10-13
 
 First public release.

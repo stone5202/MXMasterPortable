@@ -10,7 +10,7 @@
 
 MX Master Portable is a portable Windows utility for the Logitech MX Master 4. It is a single EXE that needs no administrator rights and installs no driver or service, yet lets you remap buttons, use gestures and an Actions Ring, and adjust pointer speed, SmartShift and haptic feedback. It is meant for PCs where Logi Options+ cannot be installed.
 
-> Current version: 1.0 · Interface languages: Traditional Chinese, English (follows the system by default)
+> Current version: 1.1 · Interface languages: Traditional Chinese, English (follows the system by default)
 
 See the [changelog](CHANGELOG.en.md) or [GitHub Releases](https://github.com/stone5202/MXMasterPortable/releases) for what changed in each version. The changelog is also available in [Traditional Chinese](CHANGELOG.md).
 
@@ -43,11 +43,11 @@ The EXE is not code-signed, so Windows SmartScreen may warn on first launch. On 
 ## Features
 
 - **Button mapping**: choose an action for the middle button, gesture button, both side buttons, thumb wheel left and right, the Actions Ring button and the wheel mode button.
-- **Built-in actions**: back / forward, copy / paste / cut, undo / redo, Task View, show desktop, switch virtual desktop, Alt+Tab, play / pause, volume and mute, Enter, Esc.
+- **Built-in actions**: about 50, including back / forward, copy / paste / cut, undo / redo, select all / save / find, Task View, show desktop, switch virtual desktop, Alt+Tab, minimize / maximize / close / snap window, play / pause, previous / next track, volume and mute, File Explorer, Windows Settings, Search, Start menu, Calculator, Task Manager, screenshot, emoji panel, clipboard history, quick settings, lock PC, browser tabs (new / close / reopen / refresh / zoom), type today's date or the current time, Enter, Esc, Delete.
 - **Custom actions**: any key combination (for example `Ctrl+Shift+T` or `Win+R`), or launch a program or open a file, folder or URL.
-- **Actions Ring**: hold to show a translucent eight-way ring, move to choose, release to run. All eight directions are customizable.
+- **Actions Ring**: a translucent eight-way ring with all eight positions customizable; the editor shows a numbered picture of the ring. Use it in hold mode (hold to show, move to choose, release to run) or click mode (press once to show, then left-click a slice, with no holding).
 - **Four-way thumb gestures**: hold the gesture button and swipe: left / right for back / forward, up for Task View, down for show desktop.
-- **Device settings**: shows battery level and firmware version; adjusts pointer speed (DPI), SmartShift and haptic feedback strength. Values you apply are saved and re-applied at the next start.
+- **Device settings**: shows battery level and firmware version; adjusts pointer speed (DPI), SmartShift, wheel scroll direction (standard / inverted) and haptic feedback strength. Values you apply are saved and re-applied at the next start.
 - **Connections**: Bluetooth LE and the Logi Bolt receiver.
 - **Also**: every setting is saved automatically, only one instance runs, mapping can be paused from the tray, and the interface switches between Chinese and English.
 - **Engineering mode**: view the raw HID events the mouse sends, to identify buttons or report problems.
@@ -72,7 +72,7 @@ The EXE is not code-signed, so Windows SmartScreen may warn on first launch. On 
 
 - Standard buttons and horizontal scroll: a Windows low-level mouse hook (`WH_MOUSE_LL`) plus `SendInput` for keyboard actions.
 - Special buttons (gesture button `0x00C3`, Actions Ring button `0x01A0`): temporary diversion is set through Windows' built-in HID interface with HID++ 2.0 feature `0x1B04`, and button notifications arrive through Raw Input. Diversion is released when the app is paused or exits.
-- Device settings: HID++ features `0x1004` (battery), `0x0003` (firmware), `0x2201` (DPI), `0x2111` (SmartShift) and `0x19B0` (haptics). Every write is read back to confirm it.
+- Device settings: HID++ features `0x1004` (battery), `0x0003` (firmware), `0x2201` (DPI), `0x2111` (SmartShift), `0x2121` (wheel scroll direction) and `0x19B0` (haptics). Every write is read back to confirm it.
 
 HID++ feature numbers and packet layouts follow the public implementations in the open-source projects [Solaar](https://github.com/pwr-Solaar/Solaar) and [logiops](https://github.com/PixlOne/logiops).
 
