@@ -50,7 +50,7 @@ namespace MXMasterPortable
             }
         }
 
-        internal const string Version = "1.0";
+        internal const string Version = "1.1";
 
         // Set before closing the main window to start the app again (used after a language change).
         internal static bool RestartRequested;
@@ -141,6 +141,36 @@ namespace MXMasterPortable
         Mute,
         Enter,
         Escape,
+        NextTrack,
+        PrevTrack,
+        FileExplorer,
+        Settings,
+        Calculator,
+        TaskManager,
+        Search,
+        StartMenu,
+        NewTab,
+        CloseTab,
+        ReopenTab,
+        Refresh,
+        ZoomIn,
+        ZoomOut,
+        Screenshot,
+        Emoji,
+        ClipboardHistory,
+        LockPC,
+        QuickSettings,
+        MinimizeWindow,
+        MaximizeWindow,
+        CloseWindow,
+        SnapLeft,
+        SnapRight,
+        SelectAll,
+        Save,
+        Find,
+        Delete,
+        InsertDate,
+        InsertTime,
         CustomShortcut,
         LaunchProgram
     }
@@ -294,6 +324,36 @@ namespace MXMasterPortable
                 new ActionChoice(MappedAction.VolumeUp, Lang.T("提高音量", "Volume up")),
                 new ActionChoice(MappedAction.VolumeDown, Lang.T("降低音量", "Volume down")),
                 new ActionChoice(MappedAction.Mute, Lang.T("靜音／取消靜音", "Mute / unmute")),
+                new ActionChoice(MappedAction.NextTrack, Lang.T("下一首", "Next track")),
+                new ActionChoice(MappedAction.PrevTrack, Lang.T("上一首", "Previous track")),
+                new ActionChoice(MappedAction.FileExplorer, Lang.T("檔案總管", "File Explorer")),
+                new ActionChoice(MappedAction.Settings, Lang.T("Windows 設定", "Windows Settings")),
+                new ActionChoice(MappedAction.Calculator, Lang.T("小算盤", "Calculator")),
+                new ActionChoice(MappedAction.TaskManager, Lang.T("工作管理員", "Task Manager")),
+                new ActionChoice(MappedAction.Search, Lang.T("Windows 搜尋", "Windows Search")),
+                new ActionChoice(MappedAction.StartMenu, Lang.T("開始功能表", "Start menu")),
+                new ActionChoice(MappedAction.NewTab, Lang.T("新分頁", "New tab")),
+                new ActionChoice(MappedAction.CloseTab, Lang.T("關閉分頁", "Close tab")),
+                new ActionChoice(MappedAction.ReopenTab, Lang.T("重新開啟已關閉的分頁", "Reopen closed tab")),
+                new ActionChoice(MappedAction.Refresh, Lang.T("重新整理", "Refresh")),
+                new ActionChoice(MappedAction.ZoomIn, Lang.T("放大", "Zoom in")),
+                new ActionChoice(MappedAction.ZoomOut, Lang.T("縮小", "Zoom out")),
+                new ActionChoice(MappedAction.Screenshot, Lang.T("螢幕截圖（剪取工具）", "Screenshot (Snipping Tool)")),
+                new ActionChoice(MappedAction.Emoji, Lang.T("表情符號", "Emoji panel")),
+                new ActionChoice(MappedAction.ClipboardHistory, Lang.T("剪貼簿歷程記錄", "Clipboard history")),
+                new ActionChoice(MappedAction.LockPC, Lang.T("鎖定電腦", "Lock PC")),
+                new ActionChoice(MappedAction.QuickSettings, Lang.T("快速設定（Win+A）", "Quick settings (Win+A)")),
+                new ActionChoice(MappedAction.MinimizeWindow, Lang.T("最小化視窗", "Minimize window")),
+                new ActionChoice(MappedAction.MaximizeWindow, Lang.T("最大化視窗", "Maximize window")),
+                new ActionChoice(MappedAction.CloseWindow, Lang.T("關閉視窗（Alt+F4）", "Close window (Alt+F4)")),
+                new ActionChoice(MappedAction.SnapLeft, Lang.T("視窗貼齊左側", "Snap window left")),
+                new ActionChoice(MappedAction.SnapRight, Lang.T("視窗貼齊右側", "Snap window right")),
+                new ActionChoice(MappedAction.SelectAll, Lang.T("全選", "Select all")),
+                new ActionChoice(MappedAction.Save, Lang.T("儲存", "Save")),
+                new ActionChoice(MappedAction.Find, Lang.T("尋找", "Find")),
+                new ActionChoice(MappedAction.Delete, Lang.T("Delete 鍵", "Delete key")),
+                new ActionChoice(MappedAction.InsertDate, Lang.T("輸入今天日期", "Type today's date")),
+                new ActionChoice(MappedAction.InsertTime, Lang.T("輸入目前時間", "Type the current time")),
                 new ActionChoice(MappedAction.Enter, Lang.T("Enter 鍵", "Enter key")),
                 new ActionChoice(MappedAction.Escape, Lang.T("Esc 鍵", "Esc key")),
                 new ActionChoice(MappedAction.CustomShortcut, Lang.T("自訂快捷鍵…", "Custom shortcut…")),
@@ -313,6 +373,21 @@ namespace MXMasterPortable
                 case MappedAction.Mute: return Lang.T("靜音", "Mute");
                 case MappedAction.Enter: return "Enter";
                 case MappedAction.Escape: return "Esc";
+                case MappedAction.Delete: return "Delete";
+                case MappedAction.Settings: return Lang.T("設定", "Settings");
+                case MappedAction.Search: return Lang.T("搜尋", "Search");
+                case MappedAction.ReopenTab: return Lang.T("重開分頁", "Reopen tab");
+                case MappedAction.Screenshot: return Lang.T("螢幕截圖", "Screenshot");
+                case MappedAction.Emoji: return Lang.T("表情符號", "Emoji");
+                case MappedAction.ClipboardHistory: return Lang.T("剪貼簿", "Clipboard");
+                case MappedAction.QuickSettings: return Lang.T("快速設定", "Quick settings");
+                case MappedAction.MinimizeWindow: return Lang.T("最小化", "Minimize");
+                case MappedAction.MaximizeWindow: return Lang.T("最大化", "Maximize");
+                case MappedAction.CloseWindow: return Lang.T("關閉視窗", "Close window");
+                case MappedAction.SnapLeft: return Lang.T("貼齊左側", "Snap left");
+                case MappedAction.SnapRight: return Lang.T("貼齊右側", "Snap right");
+                case MappedAction.InsertDate: return Lang.T("今天日期", "Date");
+                case MappedAction.InsertTime: return Lang.T("目前時間", "Time");
             }
             foreach (ActionChoice choice in CreateChoices())
                 if (choice.Action == action) return choice.Label;
@@ -340,6 +415,7 @@ namespace MXMasterPortable
             Combo.Location = location;
             Combo.Width = comboWidth;
             Combo.FormattingEnabled = true;
+            Combo.MaxDropDownItems = 18;
             Combo.Format += delegate(object sender, ListControlConvertEventArgs e)
             {
                 ActionChoice choice = e.ListItem as ActionChoice;
@@ -653,30 +729,71 @@ namespace MXMasterPortable
 
     internal sealed class RingDialog : Form
     {
-        private static readonly string[] Directions = Lang.English
-            ? new[] { "Up", "Up-right", "Right", "Down-right", "Down", "Down-left", "Left", "Up-left" }
-            : new[] { "上", "右上", "右", "右下", "下", "左下", "左", "左上" };
         private readonly ActionPicker[] pickers = new ActionPicker[8];
+        private readonly Label[] badges = new Label[8];
+        private readonly PictureBox guide = new PictureBox();
+        // Never shown: it only draws the numbered picture of the ring being edited.
+        private readonly ActionRingOverlay renderer = new ActionRingOverlay();
+        private int highlight = -1;
 
         private RingDialog(ActionBinding[] current)
         {
             float scale = Theme.GetScale();
             Func<int, int> s = delegate(int v) { return (int)Math.Round(v * scale); };
-            DialogStyle.Apply(this, Lang.T("自訂 Actions Ring", "Customize Actions Ring"), 440, 430, scale);
+            DialogStyle.Apply(this, Lang.T("自訂 Actions Ring", "Customize Actions Ring"), 756, 430, scale);
 
             Controls.Add(new Label
             {
-                Text = Lang.T("設定圓環八個方向放開時要執行的動作。", "Choose what each of the eight directions does when released."),
+                Text = Lang.T("圖上的編號對應右邊各列；點圖上的一格可直接設定該位置。", "Numbers on the picture match the rows; click a slice to set it."),
                 AutoSize = true,
                 Location = new Point(s(20), s(16))
             });
 
+            guide.SizeMode = PictureBoxSizeMode.Zoom;
+            guide.Location = new Point(s(20), s(50));
+            guide.Size = new Size(s(308), s(308));
+            guide.Cursor = Cursors.Hand;
+            guide.MouseMove += delegate(object sender, MouseEventArgs e) { SetHighlight(renderer.SliceAt(e.Location, guide.Size)); };
+            guide.MouseLeave += delegate { SetHighlight(-1); };
+            guide.MouseClick += delegate(object sender, MouseEventArgs e)
+            {
+                int slice = renderer.SliceAt(e.Location, guide.Size);
+                if (slice < 0) return;
+                pickers[slice].Combo.Focus();
+                pickers[slice].Combo.DroppedDown = true;
+            };
+            Controls.Add(guide);
+
             for (int i = 0; i < 8; i++)
             {
+                int index = i;
                 int y = 50 + i * 38;
-                Controls.Add(new Label { Text = Directions[i], AutoSize = true, Location = new Point(s(24), s(y + 5)) });
-                pickers[i] = new ActionPicker(this, new Point(s(100), s(y)), s(262), s(52), s(6));
+                Label badge = new Label { Location = new Point(s(350), s(y + 2)), Size = new Size(s(22), s(22)) };
+                badge.Paint += delegate(object sender, PaintEventArgs e)
+                {
+                    bool active = highlight == index;
+                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                    var circle = new RectangleF(1F, 1F, badge.Width - 2.5F, badge.Height - 2.5F);
+                    using (var fill = new SolidBrush(active ? Theme.Accent : Theme.Card))
+                    using (var ring = new Pen(Theme.Accent, 1.5F * scale))
+                    using (var ink = new SolidBrush(active ? Color.White : Theme.Accent))
+                    using (var font = new Font("Segoe UI", 8F, FontStyle.Bold))
+                    using (var center = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+                    {
+                        e.Graphics.FillEllipse(fill, circle);
+                        e.Graphics.DrawEllipse(ring, circle);
+                        e.Graphics.DrawString((index + 1).ToString(), font, ink, circle, center);
+                    }
+                };
+                badge.MouseEnter += delegate { SetHighlight(index); };
+                badges[i] = badge;
+                Controls.Add(badge);
+
+                pickers[i] = new ActionPicker(this, new Point(s(384), s(y)), s(294), s(52), s(6));
                 pickers[i].Binding = current[i];
+                pickers[i].Changed += delegate { RedrawGuide(); };
+                pickers[i].Combo.Enter += delegate { SetHighlight(index); };
+                pickers[i].Combo.MouseEnter += delegate { SetHighlight(index); };
             }
 
             Button reset = Theme.CreateButton(Lang.T("還原預設", "Reset"), false);
@@ -686,18 +803,50 @@ namespace MXMasterPortable
             {
                 ActionBinding[] defaults = ActionRingOverlay.DefaultSlots();
                 for (int i = 0; i < 8; i++) pickers[i].Binding = defaults[i];
+                RedrawGuide();
             };
             Controls.Add(reset);
             Button ok = Theme.CreateButton(Lang.T("確定", "OK"), true);
-            ok.Location = new Point(s(210), s(378));
+            ok.Location = new Point(s(526), s(378));
             ok.Size = new Size(s(100), s(34));
             ok.Click += delegate { DialogResult = DialogResult.OK; };
             Controls.Add(ok);
             Button cancel = Theme.CreateButton(Lang.T("取消", "Cancel"), false);
-            cancel.Location = new Point(s(320), s(378));
+            cancel.Location = new Point(s(636), s(378));
             cancel.Size = new Size(s(100), s(34));
             cancel.Click += delegate { DialogResult = DialogResult.Cancel; };
             Controls.Add(cancel);
+
+            RedrawGuide();
+        }
+
+        // Highlights one position in both the picture and the list.
+        private void SetHighlight(int index)
+        {
+            if (index == highlight) return;
+            highlight = index;
+            foreach (Label badge in badges) badge.Invalidate();
+            RedrawGuide();
+        }
+
+        private void RedrawGuide()
+        {
+            var bindings = new ActionBinding[8];
+            for (int i = 0; i < 8; i++) bindings[i] = pickers[i] != null ? pickers[i].Binding : ActionBinding.Of(MappedAction.PassThrough);
+            renderer.SetSlots(bindings);
+            Image old = guide.Image;
+            guide.Image = renderer.RenderGuide(highlight);
+            if (old != null) old.Dispose();
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                if (guide.Image != null) guide.Image.Dispose();
+                renderer.Dispose();
+            }
+            base.Dispose(disposing);
         }
 
         public static ActionBinding[] Prompt(IWin32Window owner, ActionBinding[] current)
@@ -1580,6 +1729,10 @@ namespace MXMasterPortable
         private bool reallyExit;
         private bool gestureActive;
         private bool actionRingActive;
+        private readonly Dictionary<int, bool> vendorState = new Dictionary<int, bool>();
+        private bool swallowLeftUp;
+        private bool swallowRightUp;
+        private readonly CheckBox ringClickMode = new ToggleSwitch();
         private Point gestureStart;
         private string gestureDirection = "";
         private string gestureCandidate = "";
@@ -1603,6 +1756,7 @@ namespace MXMasterPortable
 
             BuildUi();
             LoadSettings();
+            actionRing.ClickMode = ringClickMode.Checked;
             UpdateRingPreview();
 
             // Hooked up after loading so that restoring the saved state does not rewrite the file.
@@ -1611,6 +1765,12 @@ namespace MXMasterPortable
             gestureMode.CheckedChanged += delegate { SaveSettings(); };
             startMinimized.CheckedChanged += delegate { SaveSettings(); };
             actionRingMode.CheckedChanged += delegate { SaveSettings(); };
+            ringClickMode.CheckedChanged += delegate
+            {
+                actionRing.ClickMode = ringClickMode.Checked;
+                UpdateRingPreview();
+                SaveSettings();
+            };
 
             rawInput = new RawInputMonitor(this.Handle, AppendRawEvent, OnVendorButton);
             hidpp = new HidppDiversionManager(OnHidppStatus, OnHidppReady);
@@ -1853,8 +2013,14 @@ namespace MXMasterPortable
             modePage.Controls.Add(actionRingMode);
             AddHint(modePage, Lang.T("按住顯示、移動選擇、放開執行；在中心放開取消", "Hold to show, move to choose, release to run"), 166);
 
+            ringClickMode.Text = Lang.T("圓環改用點選（不必按住）", "Click to choose (no holding)");
+            ringClickMode.Location = new Point(S(18), S(200));
+            ringClickMode.Size = new Size(column, S(26));
+            modePage.Controls.Add(ringClickMode);
+            AddHint(modePage, Lang.T("點一下顯示，再點功能執行；點中心、圓環外或右鍵取消", "Click to show, click a slice to run; right-click cancels"), 230);
+
             Button customizeRing = Theme.CreateButton(Lang.T("自訂圓環…", "Customize ring…"), true);
-            customizeRing.Location = new Point(S(18), S(200));
+            customizeRing.Location = new Point(S(18), S(266));
             customizeRing.Size = new Size(S(124), S(34));
             customizeRing.Click += delegate
             {
@@ -2207,6 +2373,12 @@ namespace MXMasterPortable
                         if (bool.TryParse(parts[1], out value)) actionRingMode.Checked = value;
                         continue;
                     }
+                    if (parts[0].Equals("ActionRingClick", StringComparison.OrdinalIgnoreCase))
+                    {
+                        bool value;
+                        if (bool.TryParse(parts[1], out value)) ringClickMode.Checked = value;
+                        continue;
+                    }
                     string key = parts[0].Trim();
                     if (key.Equals("TrayHintShown", StringComparison.OrdinalIgnoreCase))
                     {
@@ -2256,6 +2428,7 @@ namespace MXMasterPortable
                 }
                 lines.Add("GestureMode=" + gestureMode.Checked);
                 lines.Add("ActionRingMode=" + actionRingMode.Checked);
+                lines.Add("ActionRingClick=" + ringClickMode.Checked);
                 lines.Add("StartMinimized=" + startMinimized.Checked);
                 lines.Add("Language=" + Lang.Setting);
                 // Ring0 is the top slice; the rest follow clockwise.
@@ -2288,6 +2461,37 @@ namespace MXMasterPortable
             {
                 actionRing.UpdateSelection(e.Point);
                 return false;
+            }
+
+            // Click-to-choose ring: the next click picks a slice or dismisses the ring, and
+            // neither that click nor its release reaches the window underneath.
+            if (actionRingActive && actionRing.ClickMode)
+            {
+                if (e.Kind == MouseHookKind.LeftDown)
+                {
+                    actionRing.UpdateSelection(e.Point);
+                    actionRingActive = false;
+                    swallowLeftUp = true;
+                    BeginInvoke(new Action(FinishActionRing));
+                    return true;
+                }
+                if (e.Kind == MouseHookKind.RightDown)
+                {
+                    actionRingActive = false;
+                    swallowRightUp = true;
+                    BeginInvoke(new Action(CancelActionRing));
+                    return true;
+                }
+            }
+            if (swallowLeftUp && e.Kind == MouseHookKind.LeftUp)
+            {
+                swallowLeftUp = false;
+                return true;
+            }
+            if (swallowRightUp && e.Kind == MouseHookKind.RightUp)
+            {
+                swallowRightUp = false;
+                return true;
             }
 
             if (gestureMode.Checked && gestureActive && e.Kind == MouseHookKind.Move)
@@ -2369,6 +2573,12 @@ namespace MXMasterPortable
                 AddLog(DateTime.Now.ToString("HH:mm:ss.fff") + " Decoded " + transport +
                     " dev=" + deviceIndex.ToString("X2") + " " + name + (pressed ? " Down" : " Up"));
 
+            // The same press can arrive in more than one report format (for example while
+            // Options+ is also running). Act only when the button's state really changes.
+            bool last;
+            if (vendorState.TryGetValue(controlCode, out last) && last == pressed) return;
+            vendorState[controlCode] = pressed;
+
             if (input == MouseInput.GestureButton && gestureMode.Checked)
             {
                 if (pressed) BeginGesture(Cursor.Position);
@@ -2378,7 +2588,12 @@ namespace MXMasterPortable
 
             if (input == MouseInput.ActionRingButton && actionRingMode.Checked)
             {
-                if (pressed) BeginActionRing(Cursor.Position);
+                if (actionRingActive && actionRing.ClickMode)
+                {
+                    // An open click-to-choose ring ignores the release and closes on the next press.
+                    if (pressed) CancelActionRing();
+                }
+                else if (pressed) BeginActionRing(Cursor.Position);
                 else if (actionRingActive) FinishActionRing();
                 return;
             }
@@ -2425,9 +2640,18 @@ namespace MXMasterPortable
         private void BeginActionRing(Point center)
         {
             actionRingActive = true;
+            actionRing.ClickMode = ringClickMode.Checked;
             actionRing.ShowAt(center);
             if (liveLog.Checked)
-                AddLog(DateTime.Now.ToString("HH:mm:ss.fff") + " ActionRing opened");
+                AddLog(DateTime.Now.ToString("HH:mm:ss.fff") + " ActionRing opened" + (actionRing.ClickMode ? " click-mode" : ""));
+        }
+
+        private void CancelActionRing()
+        {
+            actionRingActive = false;
+            actionRing.Hide();
+            if (liveLog.Checked)
+                AddLog(DateTime.Now.ToString("HH:mm:ss.fff") + " ActionRing cancelled");
         }
 
         private void FinishActionRing()
@@ -2498,6 +2722,7 @@ namespace MXMasterPortable
         private void ToggleEnabled()
         {
             MouseHook.Enabled = !MouseHook.Enabled;
+            if (actionRingActive) CancelActionRing();
             hidpp.SetEnabled(MouseHook.Enabled);
             UpdateTrayText();
             enableSwitch.Checked = MouseHook.Enabled;
@@ -2699,8 +2924,76 @@ namespace MXMasterPortable
                 case MappedAction.CustomShortcut: return "";
                 case MappedAction.LaunchProgram: return "";
             }
+            return ExtraGlyph(action);
+        }
+
+        private static string ExtraGlyph(MappedAction action)
+        {
+            switch (action)
+            {
+                case MappedAction.NextTrack: return "";
+                case MappedAction.PrevTrack: return "";
+                case MappedAction.FileExplorer: return "";
+                case MappedAction.Settings: return "";
+                case MappedAction.Calculator: return "";
+                case MappedAction.TaskManager: return "";
+                case MappedAction.Search: return "";
+                case MappedAction.StartMenu: return "";
+                case MappedAction.NewTab: return "";
+                case MappedAction.CloseTab: return "";
+                case MappedAction.ReopenTab: return "";
+                case MappedAction.Refresh: return "";
+                case MappedAction.ZoomIn: return "";
+                case MappedAction.ZoomOut: return "";
+                case MappedAction.Screenshot: return "";
+                case MappedAction.Emoji: return "";
+                case MappedAction.ClipboardHistory: return "";
+                case MappedAction.LockPC: return "";
+                case MappedAction.QuickSettings: return "";
+                case MappedAction.MinimizeWindow: return "";
+                case MappedAction.MaximizeWindow: return "";
+                case MappedAction.CloseWindow: return "";
+                case MappedAction.SnapLeft: return "";
+                case MappedAction.SnapRight: return "";
+                case MappedAction.SelectAll: return "";
+                case MappedAction.Save: return "";
+                case MappedAction.Find: return "";
+                case MappedAction.Delete: return "";
+                case MappedAction.InsertDate: return "";
+                case MappedAction.InsertTime: return "";
+            }
             return "";
         }
+
+        // Draws one frame without showing the window: highlight is the slice to pop out
+        // (-1 for none) and numbered adds the 1-8 badges used by the customize dialog.
+        internal Bitmap RenderGuide(int highlight)
+        {
+            int previous = selectedIndex;
+            selectedIndex = highlight;
+            showNumbers = true;
+            try { return RenderFrame(); }
+            finally
+            {
+                showNumbers = false;
+                selectedIndex = previous;
+            }
+        }
+
+        // Which slice a point inside a guide picture of the given size falls on, or -1.
+        internal int SliceAt(Point point, Size picture)
+        {
+            float zoom = Math.Min(picture.Width, picture.Height) / (float)Width;
+            double dx = (point.X - picture.Width / 2.0) / zoom;
+            double dy = (point.Y - picture.Height / 2.0) / zoom;
+            double distance = Math.Sqrt(dx * dx + dy * dy);
+            if (distance < InnerRadius * scale || distance > (OuterRadius + PopOut) * scale) return -1;
+            double angleFromUp = Math.Atan2(dx, -dy) * 180.0 / Math.PI;
+            if (angleFromUp < 0) angleFromUp += 360.0;
+            return ((int)Math.Floor((angleFromUp + 22.5) / 45.0)) % 8;
+        }
+
+        private bool showNumbers;
 
         public ActionBinding SelectedBinding
         {
@@ -2712,8 +3005,20 @@ namespace MXMasterPortable
             get { return "delta=" + lastDx + "," + lastDy + " center=" + screenCenter.X + "," + screenCenter.Y; }
         }
 
+        // Click-to-choose: the ring stays open until a click, so only the ring itself selects
+        // and it is kept fully on screen where every slice can be reached.
+        public bool ClickMode;
+
         public void ShowAt(Point center)
         {
+            if (ClickMode)
+            {
+                Rectangle area = Screen.FromPoint(center).Bounds;
+                int half = Width / 2;
+                if (area.Width >= Width && area.Height >= Height)
+                    center = new Point(Math.Max(area.Left + half, Math.Min(area.Right - half, center.X)),
+                        Math.Max(area.Top + half, Math.Min(area.Bottom - half, center.Y)));
+            }
             screenCenter = center;
             selectedIndex = -1;
             lastDx = 0;
@@ -2735,7 +3040,7 @@ namespace MXMasterPortable
             double distance = Math.Sqrt(dx * dx + dy * dy);
             int next = -1;
             // The dead zone is the centre hub, so it grows with the ring on high-DPI screens.
-            if (distance >= HubRadius * scale)
+            if (distance >= HubRadius * scale && (!ClickMode || distance <= (OuterRadius + PopOut) * scale))
             {
                 double angleFromUp = Math.Atan2(dx, -dy) * 180.0 / Math.PI;
                 if (angleFromUp < 0) angleFromUp += 360.0;
@@ -2877,13 +3182,38 @@ namespace MXMasterPortable
                     g.DrawEllipse(hubEdge, c - hub, c - hub, hub * 2F, hub * 2F);
                 }
                 bool none = selectedIndex < 0;
-                string hubText = none ? Lang.T("移動選擇", "Select") : labels[selectedIndex];
+                string hubText = none ? (showNumbers ? "Actions Ring" : ClickMode ? Lang.T("點選功能", "Choose") : Lang.T("移動選擇", "Select")) : labels[selectedIndex];
                 var hubArea = new RectangleF(c - hub + 4F * scale, c - 24F * scale, hub * 2F - 8F * scale, 30F * scale);
                 // Long custom shortcuts or program names drop to the smaller font and stay on one line.
                 bool compact = g.MeasureString(hubText, hubFont).Width > hubArea.Width;
                 using (var single = new StringFormat(center) { FormatFlags = StringFormatFlags.NoWrap, Trimming = StringTrimming.EllipsisCharacter })
                     g.DrawString(hubText, compact ? hintFont : hubFont, none ? soft : white, hubArea, single);
-                g.DrawString(none ? Lang.T("放開取消", "release to cancel") : Lang.T("放開執行", "release to run"), hintFont, muted,
+                string hubHint = ClickMode
+                    ? (none ? Lang.T("點此取消", "click to cancel") : Lang.T("點一下執行", "click to run"))
+                    : (none ? Lang.T("放開取消", "release to cancel") : Lang.T("放開執行", "release to run"));
+                if (showNumbers)
+                {
+                    // A numbered tab on the rim of each slice, matching the rows of the customize dialog.
+                    using (var badgeFont = new Font("Segoe UI", 11F * scale, FontStyle.Bold, GraphicsUnit.Pixel))
+                    using (var accent = new SolidBrush(Color.FromArgb(47, 107, 255)))
+                    using (var rim = new Pen(Color.White, 1.5F * scale))
+                    {
+                        for (int i = 0; i < 8; i++)
+                        {
+                            bool selected = i == selectedIndex;
+                            double angle = (-90.0 + i * 45.0) * Math.PI / 180.0;
+                            float radius = (selected ? outer + PopOut * scale : outer) - 2F * scale;
+                            float r = 10F * scale;
+                            var circle = new RectangleF(c + (float)Math.Cos(angle) * radius - r, c + (float)Math.Sin(angle) * radius - r, r * 2F, r * 2F);
+                            g.FillEllipse(selected ? white : accent, circle);
+                            g.DrawEllipse(rim, circle);
+                            g.DrawString((i + 1).ToString(), badgeFont, selected ? accent : white, circle, center);
+                        }
+                    }
+                }
+                if (showNumbers)
+                    hubHint = Lang.T("點一格來設定", "click a slice");
+                g.DrawString(hubHint, hintFont, muted,
                     new RectangleF(c - hub, c + 6F * scale, hub * 2F, 18F * scale), center);
             }
             return bitmap;
@@ -3011,9 +3341,70 @@ namespace MXMasterPortable
                 case MappedAction.Mute: return Tap(0xAD);
                 case MappedAction.Enter: return Tap(0x0D);
                 case MappedAction.Escape: return Tap(0x1B);
+                case MappedAction.NextTrack: return Tap(0xB0);
+                case MappedAction.PrevTrack: return Tap(0xB1);
+                case MappedAction.FileExplorer: return Combo(VK_LWIN, 0x45);
+                case MappedAction.Settings: return Combo(VK_LWIN, 0x49);
+                case MappedAction.Calculator: return Launch("calc.exe");
+                case MappedAction.TaskManager: return Combo(VK_CONTROL, VK_SHIFT, 0x1B);
+                case MappedAction.Search: return Combo(VK_LWIN, 0x53);
+                case MappedAction.StartMenu: return Combo(VK_LWIN);
+                case MappedAction.NewTab: return Combo(VK_CONTROL, 0x54);
+                case MappedAction.CloseTab: return Combo(VK_CONTROL, 0x57);
+                case MappedAction.ReopenTab: return Combo(VK_CONTROL, VK_SHIFT, 0x54);
+                case MappedAction.Refresh: return Combo(0x74);
+                case MappedAction.ZoomIn: return Combo(VK_CONTROL, 0xBB);
+                case MappedAction.ZoomOut: return Combo(VK_CONTROL, 0xBD);
+                case MappedAction.Screenshot: return Combo(VK_LWIN, VK_SHIFT, 0x53);
+                case MappedAction.Emoji: return Combo(VK_LWIN, 0xBE);
+                case MappedAction.ClipboardHistory: return Combo(VK_LWIN, 0x56);
+                // Windows ignores a synthesized Win+L, so this one goes through the API.
+                case MappedAction.LockPC: return LockWorkStation();
+                case MappedAction.QuickSettings: return Combo(VK_LWIN, 0x41);
+                case MappedAction.MinimizeWindow: return Combo(VK_LWIN, 0x28);
+                case MappedAction.MaximizeWindow: return Combo(VK_LWIN, 0x26);
+                case MappedAction.CloseWindow: return Combo(VK_MENU, 0x73);
+                case MappedAction.SnapLeft: return Combo(VK_LWIN, 0x25);
+                case MappedAction.SnapRight: return Combo(VK_LWIN, 0x27);
+                case MappedAction.SelectAll: return Combo(VK_CONTROL, 0x41);
+                case MappedAction.Save: return Combo(VK_CONTROL, 0x53);
+                case MappedAction.Find: return Combo(VK_CONTROL, 0x46);
+                case MappedAction.Delete: return Combo(0x2E);
+                case MappedAction.InsertDate: return TypeText(DateTime.Now.ToString("yyyy/MM/dd", System.Globalization.CultureInfo.InvariantCulture));
+                case MappedAction.InsertTime: return TypeText(DateTime.Now.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture));
             }
             return false;
         }
+
+        // Like Chord, but navigation-cluster and Win keys carry the extended flag.
+        private static bool Combo(params ushort[] keys)
+        {
+            bool ok = true;
+            for (int i = 0; i < keys.Length; i++) ok = Key(keys[i], false, IsExtended(keys[i])) && ok;
+            for (int i = keys.Length - 1; i >= 0; i--) ok = Key(keys[i], true, IsExtended(keys[i])) && ok;
+            return ok;
+        }
+
+        // Types text as Unicode characters, independent of the keyboard layout or IME state.
+        private static bool TypeText(string text)
+        {
+            bool ok = text.Length > 0;
+            foreach (char c in text)
+            {
+                for (int phase = 0; phase < 2; phase++)
+                {
+                    INPUT input = new INPUT();
+                    input.type = 1;
+                    input.U.ki.wScan = c;
+                    input.U.ki.dwFlags = 0x0004u | (phase == 1 ? (uint)KEYEVENTF_KEYUP : 0u);
+                    ok = SendInput(1, new[] { input }, Marshal.SizeOf(typeof(INPUT))) == 1 && ok;
+                }
+            }
+            return ok;
+        }
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool LockWorkStation();
 
         private static bool Tap(ushort key)
         {
@@ -3073,7 +3464,7 @@ namespace MXMasterPortable
 
     internal enum MouseHookKind
     {
-        Move, MiddleDown, MiddleUp, XButton1Down, XButton1Up, XButton2Down, XButton2Up, WheelLeft, WheelRight, Other
+        Move, LeftDown, LeftUp, RightDown, RightUp, MiddleDown, MiddleUp, XButton1Down, XButton1Up, XButton2Down, XButton2Up, WheelLeft, WheelRight, Other
     }
 
     internal sealed class MouseHookEvent
@@ -3092,6 +3483,7 @@ namespace MXMasterPortable
         private static readonly HookProc callback = HookCallback;
         private const int WH_MOUSE_LL = 14;
         private const int WM_MOUSEMOVE = 0x0200, WM_MBUTTONDOWN = 0x0207, WM_MBUTTONUP = 0x0208;
+        private const int WM_LBUTTONDOWN = 0x0201, WM_LBUTTONUP = 0x0202, WM_RBUTTONDOWN = 0x0204, WM_RBUTTONUP = 0x0205;
         private const int WM_XBUTTONDOWN = 0x020B, WM_XBUTTONUP = 0x020C, WM_MOUSEHWHEEL = 0x020E;
 
         public static void Install()
@@ -3113,6 +3505,10 @@ namespace MXMasterPortable
                 MouseHookKind kind = MouseHookKind.Other;
                 int msg = wParam.ToInt32();
                 if (msg == WM_MOUSEMOVE) kind = MouseHookKind.Move;
+                else if (msg == WM_LBUTTONDOWN) kind = MouseHookKind.LeftDown;
+                else if (msg == WM_LBUTTONUP) kind = MouseHookKind.LeftUp;
+                else if (msg == WM_RBUTTONDOWN) kind = MouseHookKind.RightDown;
+                else if (msg == WM_RBUTTONUP) kind = MouseHookKind.RightUp;
                 else if (msg == WM_MBUTTONDOWN) kind = MouseHookKind.MiddleDown;
                 else if (msg == WM_MBUTTONUP) kind = MouseHookKind.MiddleUp;
                 else if (msg == WM_XBUTTONDOWN || msg == WM_XBUTTONUP)
@@ -3340,6 +3736,7 @@ namespace MXMasterPortable
         // read back, and callers only report success when the device confirms the new value.
 
         private readonly Dictionary<int, int> featureIndexes = new Dictionary<int, int>();
+        private string wheelCapability;
 
         private int FindFeature(int feature)
         {
@@ -3379,6 +3776,7 @@ namespace MXMasterPortable
                     ReadFirmware(snapshot);
                     ReadDpi(snapshot);
                     ReadSmartShift(snapshot);
+                    ReadWheelDirection(snapshot);
                     ReadHaptic(snapshot);
                 }
                 catch (Exception ex)
@@ -3484,6 +3882,22 @@ namespace MXMasterPortable
             snapshot.SmartShiftThreshold = reply[5];
         }
 
+        // 0x2121 HiRes Wheel mode byte: bit0 = HID++ target, bit1 = high resolution, bit2 = inverted.
+        private void ReadWheelDirection(DeviceSnapshot snapshot)
+        {
+            byte[] reply = Call(0x2121, 1);
+            if (reply == null) return;
+            snapshot.Raw.Add("2121 mode=" + Hex(reply));
+            if (wheelCapability == null)
+            {
+                byte[] capability = Call(0x2121, 0);
+                wheelCapability = capability != null ? Hex(capability) : "";
+            }
+            if (wheelCapability.Length > 0) snapshot.Raw.Add("2121 capability=" + wheelCapability);
+            snapshot.WheelInvertPresent = true;
+            snapshot.WheelInverted = (reply[4] & 0x04) != 0;
+        }
+
         private void ReadHaptic(DeviceSnapshot snapshot)
         {
             byte[] reply = Call(0x19B0, 1);
@@ -3521,6 +3935,25 @@ namespace MXMasterPortable
                     if (Call(feature, enhanced ? 2 : 1, (byte)mode, (byte)threshold) == null) return false;
                     byte[] check = Call(feature, enhanced ? 1 : 0);
                     return check != null && check[4] == mode && check[5] == threshold;
+                }
+                catch { return false; }
+            }
+        }
+
+        // Only the invert bit changes; the target and resolution bits are written back as read.
+        public bool SetWheelInvert(bool inverted)
+        {
+            lock (sync)
+            {
+                if (disposed || transport == null) return false;
+                try
+                {
+                    byte[] mode = Call(0x2121, 1);
+                    if (mode == null) return false;
+                    byte value = (byte)(inverted ? mode[4] | 0x04 : mode[4] & ~0x04);
+                    if (Call(0x2121, 2, value) == null) return false;
+                    byte[] check = Call(0x2121, 1);
+                    return check != null && ((check[4] & 0x04) != 0) == inverted;
                 }
                 catch { return false; }
             }
@@ -3781,6 +4214,7 @@ namespace MXMasterPortable
         public string Firmware = "";
         public int DpiFeature, Dpi, DpiDefault, DpiMin, DpiMax, DpiStep;
         public int SmartShiftFeature, WheelMode, SmartShiftThreshold;
+        public bool WheelInvertPresent, WheelInverted;
         public bool HapticPresent;
         public int HapticLevel;
         public readonly List<string> Raw = new List<string>();
@@ -3802,6 +4236,7 @@ namespace MXMasterPortable
         public int Dpi = -1;
         public int WheelMode = -1;
         public int SmartShiftThreshold = -1;
+        public int WheelInvert = -1;
         public int Haptic = -1;
 
         public bool TryLoad(string key, string text)
@@ -3821,6 +4256,10 @@ namespace MXMasterPortable
             {
                 if ((value >= 1 && value <= 50) || value == 255) SmartShiftThreshold = value;
             }
+            else if (key.Equals("DeviceWheelInvert", StringComparison.OrdinalIgnoreCase))
+            {
+                if (value == 0 || value == 1) WheelInvert = value;
+            }
             else if (key.Equals("DeviceHaptic", StringComparison.OrdinalIgnoreCase))
             {
                 if (value >= 0 && value <= 100) Haptic = value;
@@ -3834,6 +4273,7 @@ namespace MXMasterPortable
             if (Dpi > 0) lines.Add("DeviceDpi=" + Dpi);
             if (WheelMode > 0) lines.Add("DeviceWheelMode=" + WheelMode);
             if (SmartShiftThreshold > 0) lines.Add("DeviceSmartShift=" + SmartShiftThreshold);
+            if (WheelInvert >= 0) lines.Add("DeviceWheelInvert=" + WheelInvert);
             if (Haptic >= 0) lines.Add("DeviceHaptic=" + Haptic);
             return lines;
         }
@@ -3854,6 +4294,11 @@ namespace MXMasterPortable
             {
                 results.Add("restore SmartShift " + WheelMode + "/" + SmartShiftThreshold +
                     " verified=" + hidpp.SetSmartShift(WheelMode, SmartShiftThreshold));
+                wrote = true;
+            }
+            if (WheelInvert >= 0 && s.WheelInvertPresent && s.WheelInverted != (WheelInvert == 1))
+            {
+                results.Add("restore wheel invert " + WheelInvert + " verified=" + hidpp.SetWheelInvert(WheelInvert == 1));
                 wrote = true;
             }
             if (Haptic >= 0 && s.HapticPresent && s.HapticLevel != Haptic)
@@ -3883,7 +4328,8 @@ namespace MXMasterPortable
         private readonly CheckBox neverDisengage = new CheckBox();
         private readonly SliderBar haptic = new SliderBar();
         private readonly Label result = new Label();
-        private readonly Button dpiApply, shiftApply, hapticApply, reload, close;
+        private readonly ComboBox wheelDirection = new ComboBox();
+        private readonly Button dpiApply, shiftApply, directionApply, hapticApply, reload, close;
         private readonly float scale;
         private DeviceSnapshot current;
 
@@ -3895,24 +4341,24 @@ namespace MXMasterPortable
             saved = savedSettings;
             save = saveAction;
             scale = Theme.GetScale();
-            DialogStyle.Apply(this, Lang.T("裝置設定", "Device settings"), 480, 496, scale);
+            DialogStyle.Apply(this, Lang.T("裝置設定", "Device settings"), 480, 500, scale);
 
-            AddInfoRow(Lang.T("連線", "Connection"), connection, 16);
-            AddInfoRow(Lang.T("電量", "Battery"), battery, 42);
-            AddInfoRow(Lang.T("韌體", "Firmware"), firmware, 68);
+            AddInfoRow(Lang.T("連線", "Connection"), connection, 12);
+            AddInfoRow(Lang.T("電量", "Battery"), battery, 36);
+            AddInfoRow(Lang.T("韌體", "Firmware"), firmware, 60);
 
-            AddSection(Lang.T("指標速度（DPI）", "Pointer speed (DPI)"), 108);
-            dpi.Location = new Point(S(14), S(134));
+            AddSection(Lang.T("指標速度（DPI）", "Pointer speed (DPI)"), 94);
+            dpi.Location = new Point(S(14), S(120));
             dpi.Size = new Size(S(270), S(30));
             dpi.ValueChanged += delegate { dpiValue.Text = dpi.Value + " DPI"; };
             Controls.Add(dpi);
-            AddValueLabel(dpiValue, 134);
+            AddValueLabel(dpiValue, 120);
             dpiRange.AutoSize = true;
             dpiRange.ForeColor = Theme.Muted;
             dpiRange.Font = new Font(Theme.UiFont, 8.5F);
-            dpiRange.Location = new Point(S(20), S(163));
+            dpiRange.Location = new Point(S(20), S(149));
             Controls.Add(dpiRange);
-            dpiApply = AddApply(134);
+            dpiApply = AddApply(120);
             dpiApply.Click += delegate
             {
                 DeviceSnapshot s = current;
@@ -3923,23 +4369,23 @@ namespace MXMasterPortable
                     delegate { saved.Dpi = value; });
             };
 
-            AddSection(Lang.T("滾輪 SmartShift", "Wheel SmartShift"), 198);
+            AddSection(Lang.T("滾輪", "Wheel"), 180);
             wheelMode.DropDownStyle = ComboBoxStyle.DropDownList;
             wheelMode.Items.Add(Lang.T("段落滾動（Ratchet）", "Ratchet"));
             wheelMode.Items.Add(Lang.T("自由滾動（Free spin）", "Free spin"));
-            wheelMode.Location = new Point(S(20), S(226));
+            wheelMode.Location = new Point(S(20), S(208));
             wheelMode.Width = S(200);
             Controls.Add(wheelMode);
-            shiftApply = AddApply(224);
-            Controls.Add(new Label { Text = Lang.T("自動切換靈敏度", "Auto-shift sensitivity"), AutoSize = true, Location = new Point(S(20), S(265)) });
+            shiftApply = AddApply(206);
+            Controls.Add(new Label { Text = Lang.T("自動切換靈敏度", "Auto-shift sensitivity"), AutoSize = true, Location = new Point(S(20), S(247)) });
             threshold.Minimum = 1;
             threshold.Maximum = 50;
-            threshold.Location = new Point(S(150), S(262));
+            threshold.Location = new Point(S(150), S(244));
             threshold.Width = S(70);
             Controls.Add(threshold);
             neverDisengage.Text = Lang.T("不自動切換", "Never auto-shift");
             neverDisengage.AutoSize = true;
-            neverDisengage.Location = new Point(S(236), S(263));
+            neverDisengage.Location = new Point(S(236), S(245));
             neverDisengage.CheckedChanged += delegate { threshold.Enabled = !neverDisengage.Checked; };
             Controls.Add(neverDisengage);
             shiftApply.Click += delegate
@@ -3950,15 +4396,30 @@ namespace MXMasterPortable
                     delegate { saved.WheelMode = mode; saved.SmartShiftThreshold = value; });
             };
 
-            AddSection(Lang.T("觸覺回饋強度", "Haptic feedback strength"), 312);
+            Controls.Add(new Label { Text = Lang.T("捲動方向", "Scroll direction"), AutoSize = true, Location = new Point(S(20), S(283)) });
+            wheelDirection.DropDownStyle = ComboBoxStyle.DropDownList;
+            wheelDirection.Items.Add(Lang.T("標準", "Standard"));
+            wheelDirection.Items.Add(Lang.T("反轉", "Inverted"));
+            wheelDirection.Location = new Point(S(150), S(280));
+            wheelDirection.Width = S(210);
+            Controls.Add(wheelDirection);
+            directionApply = AddApply(278);
+            directionApply.Click += delegate
+            {
+                bool inverted = wheelDirection.SelectedIndex == 1;
+                RunWrite(Lang.T("捲動方向", "Scroll direction"), delegate { return hidpp.SetWheelInvert(inverted); },
+                    delegate { saved.WheelInvert = inverted ? 1 : 0; });
+            };
+
+            AddSection(Lang.T("觸覺回饋強度", "Haptic feedback strength"), 321);
             haptic.Minimum = 0;
             haptic.Maximum = 100;
             haptic.Increment = 5;
-            haptic.Location = new Point(S(14), S(338));
+            haptic.Location = new Point(S(14), S(347));
             haptic.Size = new Size(S(270), S(30));
             haptic.ValueChanged += delegate { hapticValue.Text = haptic.Value > 0 ? haptic.Value.ToString() : Lang.T("關閉", "Off"); };
             Controls.Add(haptic);
-            AddValueLabel(hapticValue, 338);
+            AddValueLabel(hapticValue, 347);
             hapticValue.Text = Lang.T("關閉", "Off");
             Controls.Add(new Label
             {
@@ -3966,9 +4427,9 @@ namespace MXMasterPortable
                 AutoSize = true,
                 ForeColor = Theme.Muted,
                 Font = new Font(Theme.UiFont, 8.5F),
-                Location = new Point(S(20), S(367))
+                Location = new Point(S(20), S(376))
             });
-            hapticApply = AddApply(338);
+            hapticApply = AddApply(347);
             hapticApply.Click += delegate
             {
                 int level = (int)haptic.Value;
@@ -3978,17 +4439,17 @@ namespace MXMasterPortable
 
             result.AutoSize = false;
             result.ForeColor = Theme.Muted;
-            result.Location = new Point(S(20), S(398));
+            result.Location = new Point(S(20), S(402));
             result.Size = new Size(S(440), S(40));
             Controls.Add(result);
 
             reload = Theme.CreateButton(Lang.T("重新讀取", "Reload"), false);
-            reload.Location = new Point(S(250), S(446));
+            reload.Location = new Point(S(250), S(450));
             reload.Size = new Size(S(100), S(34));
             reload.Click += delegate { Reload(); };
             Controls.Add(reload);
             close = Theme.CreateButton(Lang.T("關閉", "Close"), false);
-            close.Location = new Point(S(360), S(446));
+            close.Location = new Point(S(360), S(450));
             close.Size = new Size(S(100), S(34));
             close.Click += delegate { Close(); };
             Controls.Add(close);
@@ -4043,7 +4504,7 @@ namespace MXMasterPortable
 
         private void SetBusy(string message)
         {
-            dpiApply.Enabled = shiftApply.Enabled = hapticApply.Enabled = reload.Enabled = false;
+            dpiApply.Enabled = shiftApply.Enabled = directionApply.Enabled = hapticApply.Enabled = reload.Enabled = false;
             result.Text = message;
         }
 
@@ -4065,7 +4526,7 @@ namespace MXMasterPortable
             BackColor = Theme.Card;
             close.Visible = false;
             result.Size = new Size(S(330), S(40));
-            reload.Location = new Point(S(360), S(400));
+            reload.Location = new Point(S(360), S(404));
             ClientSize = new Size(S(480), S(444));
             Location = location;
             host.Controls.Add(this);
@@ -4118,7 +4579,7 @@ namespace MXMasterPortable
             {
                 connection.Text = battery.Text = firmware.Text = "—";
                 dpiRange.Text = "";
-                dpi.Enabled = wheelMode.Enabled = threshold.Enabled = neverDisengage.Enabled = haptic.Enabled = false;
+                dpi.Enabled = wheelMode.Enabled = threshold.Enabled = neverDisengage.Enabled = wheelDirection.Enabled = haptic.Enabled = false;
                 return;
             }
             log(s.Raw);
@@ -4154,6 +4615,10 @@ namespace MXMasterPortable
                 if (!never) threshold.Value = s.SmartShiftThreshold;
             }
             threshold.Enabled = shift && !neverDisengage.Checked;
+
+            wheelDirection.Enabled = directionApply.Enabled = s.WheelInvertPresent;
+            if (s.WheelInvertPresent)
+                wheelDirection.SelectedIndex = s.WheelInverted ? 1 : 0;
 
             haptic.Enabled = hapticApply.Enabled = s.HapticPresent;
             if (s.HapticPresent)
