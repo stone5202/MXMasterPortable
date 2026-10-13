@@ -6,7 +6,7 @@
 
 ## 2.0 — 2026-10-13
 
-- The app is now called **MX Master WIN** (formerly MX Master Portable) and the executable is `MXMasterWIN.exe`. It is the Windows edition of the same product as MX Master Mac for macOS, so the version number moves to 2.0 with it.
+- The app is now called **MX Master Win** (formerly MX Master Portable) and the executable is `MXMasterWin.exe`. It is the Windows edition of the same product as MX Master Mac for macOS, so the version number moves to 2.0 with it.
   The settings file is now `mxmaster-win.ini`: put the new EXE in the same folder and the old `mxmaster-portable.ini` is renamed and reused on first run. The old `MXMasterPortable.exe` can be deleted.
 - Fixed: after the mouse switched to another computer and back (or reconnected), the gesture button and the Actions Ring button stopped responding. The app now checks when the mouse becomes active again, re-enables the special buttons and re-applies the saved device settings.
 - If the mouse was not connected when the app started, the special buttons are now enabled once it connects, without restarting the app.

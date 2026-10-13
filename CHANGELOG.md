@@ -6,7 +6,7 @@
 
 ## 2.0 — 2026-10-13
 
-- 程式改名為 **MX Master WIN**（原名 MX Master Portable），執行檔為 `MXMasterWIN.exe`，與 macOS 版 MX Master Mac 是同一個產品的兩個版本，版本號一起跳到 2.0。
+- 程式改名為 **MX Master Win**（原名 MX Master Portable），執行檔為 `MXMasterWin.exe`，與 macOS 版 MX Master Mac 是同一個產品的兩個版本，版本號一起跳到 2.0。
   設定檔改為 `mxmaster-win.ini`：把新的 EXE 放在原本的資料夾，第一次執行時會自動把 `mxmaster-portable.ini` 改名沿用；舊的 `MXMasterPortable.exe` 可以刪除。
 - 修正：滑鼠切換到其他電腦再切回來（或斷線重連）後，拇指手勢鍵與 Actions Ring 鍵沒有反應。程式現在會在滑鼠恢復活動時檢查並重新啟用專用鍵，同時重新套用儲存的裝置設定。
 - 程式啟動時滑鼠還沒連上的話，之後連上也會自動啟用專用鍵，不必重開程式。

@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $sourcePath = Join-Path $projectRoot 'src\Program.cs'
 $outputDirectory = Join-Path $projectRoot 'build'
-$outputPath = Join-Path $outputDirectory 'MXMasterWIN.exe'
+$outputPath = Join-Path $outputDirectory 'MXMasterWin.exe'
 $compilerCandidates = @(
     'C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe',
     'C:\Windows\Microsoft.NET\Framework\v4.0.30319\csc.exe'
@@ -29,8 +29,8 @@ if (-not (Test-Path -LiteralPath $iconPath) -or -not (Test-Path -LiteralPath $lo
     /optimize+ `
     /warn:4 `
     "/win32icon:$iconPath" `
-    "/resource:$iconPath,MXMasterWIN.app.ico" `
-    "/resource:$logoPath,MXMasterWIN.app.png" `
+    "/resource:$iconPath,MXMasterWin.app.ico" `
+    "/resource:$logoPath,MXMasterWin.app.png" `
     /reference:System.dll `
     /reference:System.Core.dll `
     /reference:System.Drawing.dll `

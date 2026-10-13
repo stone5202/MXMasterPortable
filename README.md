@@ -1,22 +1,22 @@
-# MX Master WIN
+# MX Master Win
 
 <p align="center">
   <strong>繁體中文</strong> · <a href="README.en.md">English</a>
 </p>
 
 <p align="center">
-  <img src="src/app.png" width="128" alt="MX Master WIN app icon">
+  <img src="src/app.png" width="128" alt="MX Master Win app icon">
 </p>
 
-MX Master WIN 是給 Logitech MX Master 4 用的免安裝 Windows 小工具：單一 EXE、不需要管理員權限、不安裝驅動或服務，就能自訂按鍵、拇指手勢與 Actions Ring 圓環，並調整指標速度、SmartShift、捲動方向與觸覺回饋。2.0 起新增 **MX Flow**：把游標推到螢幕邊緣，滑鼠就切到另一台電腦。適合無法安裝 Logi Options+ 的電腦。
+MX Master Win 是給 Logitech MX Master 4 用的免安裝 Windows 小工具：單一 EXE、不需要管理員權限、不安裝驅動或服務，就能自訂按鍵、拇指手勢與 Actions Ring 圓環，並調整指標速度、SmartShift、捲動方向與觸覺回饋。2.0 起新增 **MX Flow**：把游標推到螢幕邊緣，滑鼠就切到另一台電腦。適合無法安裝 Logi Options+ 的電腦。
 
 它和 macOS 版 [MX Master Mac](https://github.com/stone5202/MXMasterMac) 是同一個產品的兩個版本，功能與設定方式一致；兩台電腦各裝一個版本，就能用 MX Flow 在 Windows 與 Mac 之間來回切換。
 
 > 目前版本：2.0 · 介面語言：繁體中文、English（預設跟隨系統）
 >
-> 1.1 以前的名稱是 MX Master Portable。把新的 `MXMasterWIN.exe` 放在原本的資料夾，第一次執行時會自動沿用舊的設定檔。
+> 1.1 以前的名稱是 MX Master Portable。把新的 `MXMasterWin.exe` 放在原本的資料夾，第一次執行時會自動沿用舊的設定檔。
 
-各版本的更新內容請參閱 [更新紀錄](CHANGELOG.md) 或 [GitHub Releases](https://github.com/stone5202/MXMasterWIN/releases)。更新紀錄也提供[英文版本](CHANGELOG.en.md)。
+各版本的更新內容請參閱 [更新紀錄](CHANGELOG.md) 或 [GitHub Releases](https://github.com/stone5202/MXMasterWin/releases)。更新紀錄也提供[英文版本](CHANGELOG.en.md)。
 
 > 本專案為個人開源作品，與 Logitech 無任何關係，也未獲其認可或贊助。Logitech、MX Master、Logi Options+、Logi Bolt 為 Logitech 的商標。
 
@@ -46,7 +46,7 @@ MX Master WIN 是給 Logitech MX Master 4 用的免安裝 Windows 小工具：�
 
 ## 下載與使用
 
-1. 到 [Releases](https://github.com/stone5202/MXMasterWIN/releases/latest) 下載 `MXMasterWIN.exe`。
+1. 到 [Releases](https://github.com/stone5202/MXMasterWin/releases/latest) 下載 `MXMasterWin.exe`。
 2. 放到任何你有寫入權限的資料夾（設定檔會存在 EXE 旁邊），直接執行。
 3. 程式預設啟動後直接縮到系統匣；按兩下系統匣圖示開啟設定，要結束請用系統匣圖示的選單。
 
@@ -75,7 +75,7 @@ EXE 沒有數位簽章，第一次執行時 Windows SmartScreen 可能會顯示�
 ## 已知限制
 
 - 只在 MX Master 4（韌體 `RBM 27.03`）上開發與測試；其他型號可能只有標準按鍵對應能用。
-- MX Flow 只切換滑鼠：不傳送剪貼簿或檔案，鍵盤不會跟著切換。另一台電腦也要執行有 MX Flow 的版本（MX Master WIN 或 MX Master Mac）並設定邊緣，才能用同樣方式切回來；否則請按滑鼠底部的 Easy‑Switch 鍵。
+- MX Flow 只切換滑鼠：不傳送剪貼簿或檔案，鍵盤不會跟著切換。另一台電腦也要執行有 MX Flow 的版本（MX Master Win 或 MX Master Mac）並設定邊緣，才能用同樣方式切回來；否則請按滑鼠底部的 Easy‑Switch 鍵。
 - 滑鼠重新連上這台電腦時分不出是從哪裡切回來的；設定了多個邊緣時，游標不會自動移到邊緣。
 - 不包含 Options+ 的逐應用程式設定與韌體更新。
 - 低階滑鼠攔截無法分辨來源裝置：同時接多隻滑鼠時，標準側鍵與水平滾輪的對應也會套用到其他滑鼠。
@@ -104,12 +104,12 @@ HID++ 的功能編號與封包格式參考了開源專案 [Solaar](https://githu
 不需要安裝 Visual Studio 或 .NET SDK，使用 Windows 內建的 .NET Framework C# 編譯器即可：
 
 ```powershell
-git clone https://github.com/stone5202/MXMasterWIN.git
-cd MXMasterWIN
+git clone https://github.com/stone5202/MXMasterWin.git
+cd MXMasterWin
 powershell -ExecutionPolicy Bypass -File .\build.ps1
 ```
 
-輸出為 `build\MXMasterWIN.exe`。整個程式是單一原始檔 `src/Program.cs`（C# 5、WinForms），沒有外部相依套件。
+輸出為 `build\MXMasterWin.exe`。整個程式是單一原始檔 `src/Program.cs`（C# 5、WinForms），沒有外部相依套件。
 
 ## 專案結構
 

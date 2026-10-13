@@ -1,22 +1,22 @@
-# MX Master WIN
+# MX Master Win
 
 <p align="center">
   <a href="README.md">繁體中文</a> · <strong>English</strong>
 </p>
 
 <p align="center">
-  <img src="src/app.png" width="128" alt="MX Master WIN app icon">
+  <img src="src/app.png" width="128" alt="MX Master Win app icon">
 </p>
 
-MX Master WIN is a portable Windows utility for the Logitech MX Master 4. It is a single EXE that needs no administrator rights and installs no driver or service, yet lets you remap buttons, use thumb gestures and an Actions Ring, and adjust pointer speed, SmartShift, scroll direction and haptic feedback. Version 2.0 adds **MX Flow**: push the pointer against a screen edge and the mouse moves to another computer. It is meant for PCs where Logi Options+ cannot be installed.
+MX Master Win is a portable Windows utility for the Logitech MX Master 4. It is a single EXE that needs no administrator rights and installs no driver or service, yet lets you remap buttons, use thumb gestures and an Actions Ring, and adjust pointer speed, SmartShift, scroll direction and haptic feedback. Version 2.0 adds **MX Flow**: push the pointer against a screen edge and the mouse moves to another computer. It is meant for PCs where Logi Options+ cannot be installed.
 
 It is the Windows edition of the same product as [MX Master Mac](https://github.com/stone5202/MXMasterMac) for macOS, with the same features and the same way of setting them up. Run one edition on each computer and MX Flow takes the mouse back and forth between Windows and Mac.
 
 > Current version: 2.0 · Interface languages: Traditional Chinese, English (follows the system by default)
 >
-> Up to 1.1 the app was called MX Master Portable. Put the new `MXMasterWIN.exe` in the same folder and it picks up the old settings file on first run.
+> Up to 1.1 the app was called MX Master Portable. Put the new `MXMasterWin.exe` in the same folder and it picks up the old settings file on first run.
 
-See the [changelog](CHANGELOG.en.md) or [GitHub Releases](https://github.com/stone5202/MXMasterWIN/releases) for what changed in each version. The changelog is also available in [Traditional Chinese](CHANGELOG.md).
+See the [changelog](CHANGELOG.en.md) or [GitHub Releases](https://github.com/stone5202/MXMasterWin/releases) for what changed in each version. The changelog is also available in [Traditional Chinese](CHANGELOG.md).
 
 > This is an independent open-source project. It is not affiliated with, endorsed by or sponsored by Logitech. Logitech, MX Master, Logi Options+ and Logi Bolt are trademarks of Logitech.
 
@@ -46,7 +46,7 @@ See the [changelog](CHANGELOG.en.md) or [GitHub Releases](https://github.com/sto
 
 ## Download and use
 
-1. Download `MXMasterWIN.exe` from [Releases](https://github.com/stone5202/MXMasterWIN/releases/latest).
+1. Download `MXMasterWin.exe` from [Releases](https://github.com/stone5202/MXMasterWin/releases/latest).
 2. Put it in any folder you can write to (settings are stored next to the EXE) and run it.
 3. By default the app starts minimized to the system tray. Double-click the tray icon to open settings; use the tray icon menu to exit.
 
@@ -75,7 +75,7 @@ The EXE is not code-signed, so Windows SmartScreen may warn on first launch. On 
 ## Known limitations
 
 - Developed and tested only on the MX Master 4 (firmware `RBM 27.03`). Other models may only get standard button mapping.
-- MX Flow only moves the mouse: no clipboard or files are transferred, and the keyboard does not follow. To come back the same way, the other computer must also run an edition with MX Flow (MX Master WIN or MX Master Mac) with an edge set; otherwise press the Easy‑Switch button under the mouse.
+- MX Flow only moves the mouse: no clipboard or files are transferred, and the keyboard does not follow. To come back the same way, the other computer must also run an edition with MX Flow (MX Master Win or MX Master Mac) with an edge set; otherwise press the Easy‑Switch button under the mouse.
 - When the mouse reconnects, the app cannot tell where it came back from; with more than one edge set, the pointer is not moved to an edge.
 - No per-application profiles or firmware updates.
 - The low-level mouse hook cannot tell devices apart: with several mice connected, side-button and horizontal-scroll mappings apply to all of them.
@@ -104,12 +104,12 @@ HID++ feature numbers and packet layouts follow the public implementations in th
 No Visual Studio or .NET SDK is needed; the C# compiler that ships with the Windows .NET Framework is enough:
 
 ```powershell
-git clone https://github.com/stone5202/MXMasterWIN.git
-cd MXMasterWIN
+git clone https://github.com/stone5202/MXMasterWin.git
+cd MXMasterWin
 powershell -ExecutionPolicy Bypass -File .\build.ps1
 ```
 
-The output is `build\MXMasterWIN.exe`. The whole app is one source file, `src/Program.cs` (C# 5, WinForms), with no external dependencies.
+The output is `build\MXMasterWin.exe`. The whole app is one source file, `src/Program.cs` (C# 5, WinForms), with no external dependencies.
 
 ## Project structure
 
