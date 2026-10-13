@@ -4,6 +4,24 @@
   <a href="CHANGELOG.md">繁體中文</a> · <strong>English</strong>
 </p>
 
+## 2.0 — 2026-10-13
+
+- The app is now called **MX Master WIN** (formerly MX Master Portable) and the executable is `MXMasterWIN.exe`. It is the Windows edition of the same product as MX Master Mac for macOS, so the version number moves to 2.0 with it.
+  The settings file is now `mxmaster-win.ini`: put the new EXE in the same folder and the old `mxmaster-portable.ini` is renamed and reused on first run. The old `MXMasterPortable.exe` can be deleted.
+- Fixed: after the mouse switched to another computer and back (or reconnected), the gesture button and the Actions Ring button stopped responding. The app now checks when the mouse becomes active again, re-enables the special buttons and re-applies the saved device settings.
+- If the mouse was not connected when the app started, the special buttons are now enabled once it connects, without restarting the app.
+- Fixed: the mouse was not found after it moved from the Logi Bolt receiver to Bluetooth (or back) while the receiver stayed plugged in. When the current connection stops answering, the app now looks for the mouse on the other connections.
+- Actions Ring: new Bubbles style, with one round icon per position and the name shown in the centre only for the one under the pointer.
+- Actions Ring: adjustable overall size, bubble size and opacity (Gestures & Ring page). The default size is smaller than in 1.1, matching the macOS version; raise Overall size to get the old size back.
+- All four thumb gesture directions are now customizable (Customize gestures…).
+- Advanced page: new "Start when I sign in to Windows" switch, off by default. Turning it on puts a shortcut in your Startup folder and turning it off removes it; no administrator rights and no registry change.
+- Scroll direction: Inverted is now called Natural (Standard is unchanged); applied settings are unaffected.
+- New: **MX Flow** (its own page). Keep pushing the pointer against a screen edge and the mouse moves to the chosen Easy-Switch channel. Each of the four
+  edges can target its own channel and the trigger time is adjustable (0.1–2.0 s); with several monitors only the outer edge of the outermost monitor
+  triggers, and a held key (Ctrl, Alt, Shift, Win or a mouse button) can be required. Off by default; no clipboard or files are transferred.
+- Shows the computer name and connection type stored for each of the three Easy-Switch channels, with a button to switch directly.
+- The tray icon menu has an MX Flow item (ticked while on).
+
 ## 1.1 — 2026-10-13
 
 - Pointer & Wheel page: added wheel scroll direction (Standard / Inverted); the applied value is saved and re-applied at the next start.
