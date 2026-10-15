@@ -4,6 +4,12 @@
   <strong>繁體中文</strong> · <a href="CHANGELOG.en.md">English</a>
 </p>
 
+## 2.1 — 2026-10-15
+
+- Actions Ring 新增「滑過選項時震動」（預設開啟）：游標移到另一格時滑鼠輕震一下。可選 6 種震動波形，選了會立刻震一下，旁邊有「試震」按鈕；強度跟著「指標與滾輪」頁的觸覺回饋設定。
+- Actions Ring 可選「白色」配色（「手勢與圓環」頁的「圓環顏色」，預設維持深色）。
+- 新動作「MX設定」（下拉選單第二項）：按鍵、手勢或 Actions Ring 都可以設定成開啟本程式的設定視窗。
+
 ## 2.0 — 2026-10-13
 
 - 程式改名為 **MX Master Win**（原名 MX Master Portable），執行檔為 `MXMasterWin.exe`，與 macOS 版 MX Master Mac 是同一個產品的兩個版本，版本號一起跳到 2.0。

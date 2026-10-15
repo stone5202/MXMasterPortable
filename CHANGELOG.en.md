@@ -4,6 +4,12 @@
   <a href="CHANGELOG.md">繁體中文</a> · <strong>English</strong>
 </p>
 
+## 2.1 — 2026-10-15
+
+- Actions Ring: new "Haptic tick on each slice" (on by default) — the mouse taps lightly as the pointer moves onto another slice. Choose from six waveforms (picking one plays it at once, and there is a Try button); the strength follows the haptic feedback setting on the Pointer & Wheel page.
+- Actions Ring: new White color option ("Ring color" on the Gestures & Ring page; dark stays the default).
+- New action "MX Settings": a button, gesture or Actions Ring slice can open this app's settings window.
+
 ## 2.0 — 2026-10-13
 
 - The app is now called **MX Master Win** (formerly MX Master Portable) and the executable is `MXMasterWin.exe`. It is the Windows edition of the same product as MX Master Mac for macOS, so the version number moves to 2.0 with it.
