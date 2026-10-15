@@ -60,7 +60,7 @@ namespace MXMasterWin
             }
         }
 
-        internal const string Version = "2.0";
+        internal const string Version = "2.1";
 
         // Set before closing the main window to start the app again (used after a language change).
         internal static bool RestartRequested;
@@ -181,6 +181,7 @@ namespace MXMasterWin
         Delete,
         InsertDate,
         InsertTime,
+        OpenSettings,
         CustomShortcut,
         LaunchProgram
     }
@@ -318,6 +319,7 @@ namespace MXMasterWin
             return new List<ActionChoice>
             {
                 new ActionChoice(MappedAction.PassThrough, Lang.T("保留原功能（不攔截）", "Keep original function")),
+                new ActionChoice(MappedAction.OpenSettings, Lang.T("MX設定", "MX Settings")),
                 new ActionChoice(MappedAction.BrowserBack, Lang.T("上一頁", "Back")),
                 new ActionChoice(MappedAction.BrowserForward, Lang.T("下一頁", "Forward")),
                 new ActionChoice(MappedAction.Copy, Lang.T("複製", "Copy")),
@@ -398,6 +400,7 @@ namespace MXMasterWin
                 case MappedAction.SnapRight: return Lang.T("貼齊右側", "Snap right");
                 case MappedAction.InsertDate: return Lang.T("今天日期", "Date");
                 case MappedAction.InsertTime: return Lang.T("目前時間", "Time");
+                case MappedAction.OpenSettings: return Lang.T("MX設定", "MX Settings");
             }
             foreach (ActionChoice choice in CreateChoices())
                 if (choice.Action == action) return choice.Label;
@@ -1881,6 +1884,14 @@ namespace MXMasterWin
         private readonly SliderBar ringSize = new SliderBar();
         private readonly SliderBar bubbleSize = new SliderBar();
         private readonly SliderBar ringOpacity = new SliderBar();
+        private readonly ComboBox ringColor = new ComboBox();
+        private readonly CheckBox ringHaptic = new ToggleSwitch();
+        private readonly ComboBox ringHapticWave = new ComboBox();
+        private Button hapticTry;
+        // Short haptic waveforms that suit sliding across the ring, in menu order (ids follow Solaar;
+        // the same list as the macOS version). 0x04 is the default.
+        private static readonly int[] HapticWaves = { 0x1B, 0x04, 0x01, 0x03, 0x00, 0x02 };
+        private const int DefaultHapticWave = 1;
         private readonly System.Windows.Forms.Timer appearanceSave = new System.Windows.Forms.Timer();
         private readonly DeviceSettings deviceSettings = new DeviceSettings();
         private DiagnosticsForm diagnostics;
@@ -1995,6 +2006,22 @@ namespace MXMasterWin
             ringSize.ValueChanged += appearanceChanged;
             bubbleSize.ValueChanged += appearanceChanged;
             ringOpacity.ValueChanged += appearanceChanged;
+            ringColor.SelectedIndexChanged += appearanceChanged;
+            ringHaptic.CheckedChanged += delegate
+            {
+                UpdateHapticControls();
+                SaveSettings();
+            };
+            // Picking a waveform plays it once so it can be felt straight away.
+            ringHapticWave.SelectedIndexChanged += delegate
+            {
+                PlayRingHaptic();
+                SaveSettings();
+            };
+            actionRing.SlotEntered = delegate
+            {
+                if (ringHaptic.Checked) PlayRingHaptic();
+            };
             startMinimized.CheckedChanged += delegate { SaveSettings(); };
             actionRingMode.CheckedChanged += delegate { SaveSettings(); };
             ringClickMode.CheckedChanged += delegate
@@ -2028,6 +2055,11 @@ namespace MXMasterWin
             Microsoft.Win32.SystemEvents.DisplaySettingsChanged += displayHandler;
             UpdateScreens();
 
+            ActionRunner.OpenSettings = delegate
+            {
+                try { BeginInvoke(new Action(ShowWindow)); }
+                catch { }
+            };
             rawInput = new RawInputMonitor(this.Handle, AppendRawEvent, OnVendorButton, OnMouseActivity, OnMxMouseMove);
             hidpp = new HidppDiversionManager(OnHidppStatus, OnHidppReady);
             MouseHook.MouseEvent += OnMouseEvent;
@@ -2323,8 +2355,8 @@ namespace MXMasterWin
             AddRingOption(modePage, Lang.T("不透明度", "Opacity"), 412, ringOpacity);
 
             ringPreview.SizeMode = PictureBoxSizeMode.Zoom;
-            ringPreview.Location = new Point(S(372), S(64));
-            ringPreview.Size = new Size(S(296), S(296));
+            ringPreview.Location = new Point(S(400), S(54));
+            ringPreview.Size = new Size(S(240), S(240));
             modePage.Controls.Add(ringPreview);
             modePage.Controls.Add(new Label
             {
@@ -2333,9 +2365,44 @@ namespace MXMasterWin
                 TextAlign = ContentAlignment.MiddleCenter,
                 ForeColor = Theme.Muted,
                 Font = new Font(Theme.UiFont, 8.5F),
-                Location = new Point(S(372), S(366)),
-                Size = new Size(S(296), S(20))
+                Location = new Point(S(400), S(296)),
+                Size = new Size(S(240), S(20))
             });
+
+            // Right column under the preview: ring colour, and a haptic tick as the pointer enters each slice.
+            int ringRight = 372;
+            modePage.Controls.Add(new Label { Text = Lang.T("圓環顏色", "Ring color"), AutoSize = false, Location = new Point(S(ringRight), S(330)), Size = new Size(S(84), S(22)) });
+            ringColor.DropDownStyle = ComboBoxStyle.DropDownList;
+            ringColor.Items.Add(Lang.T("深色", "Dark"));
+            ringColor.Items.Add(Lang.T("白色", "White"));
+            ringColor.SelectedIndex = 0;
+            ringColor.Location = new Point(S(ringRight + 86), S(328));
+            ringColor.Width = S(150);
+            modePage.Controls.Add(ringColor);
+
+            ringHaptic.Text = Lang.T("滑過選項時震動", "Haptic tick on each slice");
+            ringHaptic.Checked = true;
+            ringHaptic.Location = new Point(S(ringRight), S(362));
+            ringHaptic.Size = new Size(S(376), S(26));
+            modePage.Controls.Add(ringHaptic);
+            AddHintAt(modePage, Lang.T("移到另一格時輕震；強度依「指標與滾輪」頁的觸覺回饋", "Strength follows the haptic feedback setting"), ringRight, 390);
+            modePage.Controls.Add(new Label { Text = Lang.T("震動波形", "Waveform"), AutoSize = false, Location = new Point(S(ringRight), S(418)), Size = new Size(S(84), S(22)) });
+            ringHapticWave.DropDownStyle = ComboBoxStyle.DropDownList;
+            ringHapticWave.Items.Add(Lang.T("極輕", "Whisper"));
+            ringHapticWave.Items.Add(Lang.T("輕微（預設）", "Subtle (default)"));
+            ringHapticWave.Items.Add(Lang.T("柔和", "Soft"));
+            ringHapticWave.Items.Add(Lang.T("柔和碰撞", "Soft bump"));
+            ringHapticWave.Items.Add(Lang.T("清脆", "Crisp"));
+            ringHapticWave.Items.Add(Lang.T("清脆碰撞", "Crisp bump"));
+            ringHapticWave.SelectedIndex = DefaultHapticWave;
+            ringHapticWave.Location = new Point(S(ringRight + 86), S(416));
+            ringHapticWave.Width = S(150);
+            modePage.Controls.Add(ringHapticWave);
+            hapticTry = Theme.CreateButton(Lang.T("試震", "Try"), false);
+            hapticTry.Location = new Point(S(ringRight + 244), S(414));
+            hapticTry.Size = new Size(S(64), S(28));
+            hapticTry.Click += delegate { PlayRingHaptic(); };
+            modePage.Controls.Add(hapticTry);
 
             // ---- Page 2: pointer, wheel and haptics. Filled in on first use, once HID++ exists. ----
             devicePage = AddPage("");
@@ -2704,8 +2771,19 @@ namespace MXMasterWin
                 ? 0.6F + 0.2F * (bubbleSize.Value / 50F)
                 : 0.8F + 0.225F * ((bubbleSize.Value - 50) / 50F);
             bubbleSize.Enabled = ringStyle.SelectedIndex == 1;
-            actionRing.Configure(ringStyle.SelectedIndex == 1, size, bubble, ringOpacity.Value / 100F);
+            actionRing.Configure(ringStyle.SelectedIndex == 1, ringColor.SelectedIndex == 1, size, bubble, ringOpacity.Value / 100F);
             UpdateRingPreview();
+        }
+
+        private void UpdateHapticControls()
+        {
+            ringHapticWave.Enabled = hapticTry.Enabled = ringHaptic.Checked;
+        }
+
+        private void PlayRingHaptic()
+        {
+            if (hidpp == null) return;
+            hidpp.PlayHaptic((byte)HapticWaves[Math.Max(0, ringHapticWave.SelectedIndex)]);
         }
 
         private bool applyingStartup;
@@ -2866,6 +2944,25 @@ namespace MXMasterWin
                         ringStyle.SelectedIndex = parts[1].Trim().Equals("Bubble", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
                         continue;
                     }
+                    if (key.Equals("RingColor", StringComparison.OrdinalIgnoreCase))
+                    {
+                        ringColor.SelectedIndex = parts[1].Trim().Equals("Light", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+                        continue;
+                    }
+                    if (key.Equals("RingHaptic", StringComparison.OrdinalIgnoreCase))
+                    {
+                        bool on;
+                        if (bool.TryParse(parts[1].Trim(), out on)) ringHaptic.Checked = on;
+                        continue;
+                    }
+                    if (key.Equals("RingHapticWave", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Stored as the waveform id; anything not in the menu falls back to the default.
+                        int wave;
+                        int found = int.TryParse(parts[1].Trim(), out wave) ? Array.IndexOf(HapticWaves, wave) : -1;
+                        ringHapticWave.SelectedIndex = found >= 0 ? found : DefaultHapticWave;
+                        continue;
+                    }
                     if (key.Equals("RingSize", StringComparison.OrdinalIgnoreCase) || key.Equals("BubbleSize", StringComparison.OrdinalIgnoreCase) ||
                         key.Equals("RingOpacity", StringComparison.OrdinalIgnoreCase))
                     {
@@ -2949,6 +3046,7 @@ namespace MXMasterWin
             actionRing.SetSlots(ringBindings);
             UpdateGestureNames();
             ApplyRingAppearance();
+            UpdateHapticControls();
             RefreshHostUi();
         }
 
@@ -2973,6 +3071,9 @@ namespace MXMasterWin
                 lines.Add("RingSize=" + ringSize.Value);
                 lines.Add("BubbleSize=" + bubbleSize.Value);
                 lines.Add("RingOpacity=" + ringOpacity.Value);
+                lines.Add("RingColor=" + (ringColor.SelectedIndex == 1 ? "Light" : "Dark"));
+                lines.Add("RingHaptic=" + ringHaptic.Checked);
+                lines.Add("RingHapticWave=" + HapticWaves[Math.Max(0, ringHapticWave.SelectedIndex)]);
                 for (int i = 0; i < GestureKeys.Length; i++)
                     lines.Add(GestureKeys[i] + "=" + gestureBindings[i]);
                 lines.Add("StartMinimized=" + startMinimized.Checked);
@@ -3732,10 +3833,17 @@ namespace MXMasterWin
         // Bubble style: one round icon per slot; the name shows only for the slot under the pointer.
         public bool Bubbles;
 
+        // White theme: light slices with dark text instead of the default dark ones. The selection stays blue.
+        public bool Light;
+
+        // Called when the pointer moves onto another slice (used for the haptic tick).
+        public Action<int> SlotEntered;
+
         // sizeFactor and bubble are multipliers of the design size; opacityValue is 0.4-1.
-        public void Configure(bool bubbles, float sizeFactor, float bubble, float opacityValue)
+        public void Configure(bool bubbles, bool light, float sizeFactor, float bubble, float opacityValue)
         {
             Bubbles = bubbles;
+            Light = light;
             bubbleFactor = bubble;
             maxAlpha = (int)Math.Round(255F * Math.Max(0.4F, Math.Min(1F, opacityValue)));
             scale = dpiScale * sizeFactor;
@@ -3830,6 +3938,7 @@ namespace MXMasterWin
                 case MappedAction.Delete: return "";
                 case MappedAction.InsertDate: return "";
                 case MappedAction.InsertTime: return "";
+                case MappedAction.OpenSettings: return "";
             }
             return "";
         }
@@ -3919,6 +4028,7 @@ namespace MXMasterWin
             {
                 selectedIndex = next;
                 Redraw();
+                if (next >= 0 && SlotEntered != null) SlotEntered(next);
             }
         }
 
@@ -3970,6 +4080,11 @@ namespace MXMasterWin
             return path;
         }
 
+        // Text and centre colours for the dark (default) and white themes.
+        private Color Ink { get { return Light ? Color.FromArgb(52, 60, 78) : Color.FromArgb(214, 221, 236); } }
+        private Color MutedInk { get { return Light ? Color.FromArgb(150, 158, 175) : Color.FromArgb(138, 148, 170); } }
+        private Color HubFace { get { return Light ? Color.FromArgb(250, 255, 255, 255) : Color.FromArgb(246, 20, 23, 33); } }
+
         // Eight round icons on a circle. Hit-testing stays the same eight directions as the ring.
         private Bitmap RenderBubbles()
         {
@@ -3986,11 +4101,11 @@ namespace MXMasterWin
             using (var textFont = new Font(Theme.UiFont, Math.Max(8F, 10.5F * bubbleFactor * scale), FontStyle.Bold, GraphicsUnit.Pixel))
             using (var nameFont = new Font(Theme.UiFont, Math.Max(12F, 14.5F * scale), FontStyle.Bold, GraphicsUnit.Pixel))
             using (var white = new SolidBrush(Color.White))
-            using (var soft = new SolidBrush(Color.FromArgb(214, 221, 236)))
-            using (var muted = new SolidBrush(Color.FromArgb(138, 148, 170)))
-            using (var normal = new SolidBrush(Color.FromArgb(240, 30, 34, 47)))
-            using (var shadow = new SolidBrush(Color.FromArgb(12, 0, 0, 0)))
-            using (var edge = new Pen(Color.FromArgb(70, 255, 255, 255), Math.Max(1F, 1.2F * scale)))
+            using (var soft = new SolidBrush(Ink))
+            using (var muted = new SolidBrush(MutedInk))
+            using (var normal = new SolidBrush(Light ? Color.FromArgb(246, 250, 251, 253) : Color.FromArgb(240, 30, 34, 47)))
+            using (var shadow = new SolidBrush(Color.FromArgb(Light ? 14 : 12, 0, 0, 0)))
+            using (var edge = new Pen(Light ? Color.FromArgb(70, 120, 130, 150) : Color.FromArgb(70, 255, 255, 255), Math.Max(1F, 1.2F * scale)))
             using (var chosenEdge = new Pen(Color.FromArgb(120, 255, 255, 255), Math.Max(1F, 1.4F * scale)))
             {
                 g.SmoothingMode = SmoothingMode.AntiAlias;
@@ -4049,18 +4164,23 @@ namespace MXMasterWin
                     float width = Math.Min(g.MeasureString(name, nameFont).Width + 26F * scale, Math.Max(60F * scale, (orbit - bubble) * 2F - 6F * scale));
                     float height = Math.Max(26F, 32F * scale);
                     var pill = new RectangleF(c - width / 2F, c - height / 2F, width, height);
-                    using (var back = new SolidBrush(Color.FromArgb(246, 20, 23, 33)))
+                    using (var back = new SolidBrush(HubFace))
+                    using (var pillEdge = new Pen(Light ? Color.FromArgb(70, 120, 130, 150) : Color.Transparent, Math.Max(1F, scale)))
+                    using (var title = new SolidBrush(Light ? Theme.Text : Color.White))
                     using (GraphicsPath shape = Theme.RoundedRectangle(pill, height / 2F - 0.5F))
+                    {
                         g.FillPath(back, shape);
-                    using (var single = new StringFormat(center) { FormatFlags = StringFormatFlags.NoWrap, Trimming = StringTrimming.EllipsisCharacter })
-                        g.DrawString(name, nameFont, white, pill, single);
+                        if (Light) g.DrawPath(pillEdge, shape);
+                        using (var single = new StringFormat(center) { FormatFlags = StringFormatFlags.NoWrap, Trimming = StringTrimming.EllipsisCharacter })
+                            g.DrawString(name, nameFont, title, pill, single);
+                    }
                 }
                 else
                 {
                     // A small dot marks the centre, where releasing or clicking cancels.
                     float dot = Math.Max(5F, 8F * scale);
-                    using (var back = new SolidBrush(Color.FromArgb(190, 20, 23, 33)))
-                    using (var ring = new Pen(Color.FromArgb(130, 255, 255, 255), Math.Max(1F, 1.4F * scale)))
+                    using (var back = new SolidBrush(Light ? Color.FromArgb(220, 255, 255, 255) : Color.FromArgb(190, 20, 23, 33)))
+                    using (var ring = new Pen(Light ? Color.FromArgb(130, 120, 130, 150) : Color.FromArgb(130, 255, 255, 255), Math.Max(1F, 1.4F * scale)))
                     {
                         g.FillEllipse(back, c - dot, c - dot, dot * 2F, dot * 2F);
                         g.DrawEllipse(ring, c - dot, c - dot, dot * 2F, dot * 2F);
@@ -4086,8 +4206,9 @@ namespace MXMasterWin
             using (var hintFont = new Font(Theme.UiFont, 11F * scale, FontStyle.Regular, GraphicsUnit.Pixel))
             using (var glyphFont = new Font(iconFont ?? Theme.UiFont, 21F * scale, FontStyle.Regular, GraphicsUnit.Pixel))
             using (var white = new SolidBrush(Color.White))
-            using (var soft = new SolidBrush(Color.FromArgb(214, 221, 236)))
-            using (var muted = new SolidBrush(Color.FromArgb(138, 148, 170)))
+            using (var soft = new SolidBrush(Ink))
+            using (var muted = new SolidBrush(MutedInk))
+            using (var title = new SolidBrush(Light ? Theme.Text : Color.White))
             {
                 g.SmoothingMode = SmoothingMode.AntiAlias;
                 g.PixelOffsetMode = PixelOffsetMode.HighQuality;
@@ -4104,8 +4225,8 @@ namespace MXMasterWin
                     }
                 }
 
-                using (var normal = new SolidBrush(Color.FromArgb(238, 30, 34, 47)))
-                using (var edge = new Pen(Color.FromArgb(46, 255, 255, 255), Math.Max(1F, scale)))
+                using (var normal = new SolidBrush(Light ? Color.FromArgb(244, 250, 251, 253) : Color.FromArgb(238, 30, 34, 47)))
+                using (var edge = new Pen(Light ? Color.FromArgb(60, 120, 130, 150) : Color.FromArgb(46, 255, 255, 255), Math.Max(1F, scale)))
                 {
                     for (int i = 0; i < 8; i++)
                     {
@@ -4145,8 +4266,9 @@ namespace MXMasterWin
                     }
                 }
 
-                using (var hubBrush = new SolidBrush(Color.FromArgb(246, 20, 23, 33)))
-                using (var hubEdge = new Pen(selectedIndex < 0 ? Color.FromArgb(60, 255, 255, 255) : Color.FromArgb(220, 64, 140, 255), 1.5F * scale))
+                using (var hubBrush = new SolidBrush(HubFace))
+                using (var hubEdge = new Pen(selectedIndex >= 0 ? Color.FromArgb(220, 64, 140, 255)
+                    : Light ? Color.FromArgb(80, 120, 130, 150) : Color.FromArgb(60, 255, 255, 255), 1.5F * scale))
                 {
                     g.FillEllipse(hubBrush, c - hub, c - hub, hub * 2F, hub * 2F);
                     g.DrawEllipse(hubEdge, c - hub, c - hub, hub * 2F, hub * 2F);
@@ -4157,7 +4279,7 @@ namespace MXMasterWin
                 // Long custom shortcuts or program names drop to the smaller font and stay on one line.
                 bool compact = g.MeasureString(hubText, hubFont).Width > hubArea.Width;
                 using (var single = new StringFormat(center) { FormatFlags = StringFormatFlags.NoWrap, Trimming = StringTrimming.EllipsisCharacter })
-                    g.DrawString(hubText, compact ? hintFont : hubFont, none ? soft : white, hubArea, single);
+                    g.DrawString(hubText, compact ? hintFont : hubFont, none ? soft : title, hubArea, single);
                 string hubHint = ClickMode
                     ? (none ? Lang.T("點此取消", "click to cancel") : Lang.T("點一下執行", "click to run"))
                     : (none ? Lang.T("放開取消", "release to cancel") : Lang.T("放開執行", "release to run"));
@@ -4218,6 +4340,9 @@ namespace MXMasterWin
         private const ushort VK_MENU = 0x12;
         private const ushort VK_LWIN = 0x5B;
         private const ushort VK_SHIFT = 0x10;
+
+        // Set by MainForm: shows this app's settings window (posted to the UI thread).
+        public static Action OpenSettings;
 
         public static bool Run(ActionBinding binding)
         {
@@ -4293,6 +4418,10 @@ namespace MXMasterWin
             switch (action)
             {
                 case MappedAction.PassThrough: return false;
+                case MappedAction.OpenSettings:
+                    if (OpenSettings == null) return false;
+                    OpenSettings();
+                    return true;
                 case MappedAction.BrowserBack: return Tap(0xA6);
                 case MappedAction.BrowserForward: return Tap(0xA7);
                 case MappedAction.Copy: return Chord(VK_CONTROL, 0x43);
@@ -5154,6 +5283,41 @@ namespace MXMasterWin
                 }
                 catch { return false; }
             }
+        }
+
+        private int hapticBusy;
+        private bool hapticFailureReported;
+
+        // Plays one haptic waveform (0x19B0 function 4; waveform ids follow Solaar, 0x04 = subtle bump).
+        // The strength follows the mouse's own haptic setting, so nothing plays while that is off.
+        // Runs in the background; a play still in flight, or a channel busy for long, skips this one
+        // rather than letting taps queue up behind a fast sweep across the ring.
+        public void PlayHaptic(byte waveform)
+        {
+            if (disposed || Interlocked.CompareExchange(ref hapticBusy, 1, 0) != 0) return;
+            ThreadPool.QueueUserWorkItem(delegate
+            {
+                bool taken = false;
+                try
+                {
+                    Monitor.TryEnter(sync, 100, ref taken);
+                    if (!taken || disposed || transport == null || deviceIndex < 0) return;
+                    int index = FindFeature(0x19B0);
+                    if (index < 0) return;
+                    byte[] reply = transport.Request(deviceIndex, index, 4, SoftwareId, new[] { waveform }, 250);
+                    if (reply == null && !hapticFailureReported)
+                    {
+                        hapticFailureReported = true;
+                        Report("haptic play " + waveform.ToString("X2") + " no reply");
+                    }
+                }
+                catch { }
+                finally
+                {
+                    if (taken) Monitor.Exit(sync);
+                    Interlocked.Exchange(ref hapticBusy, 0);
+                }
+            });
         }
 
         // ---- Easy-Switch hosts (0x1814 Change Host, 0x1815 Hosts Info; byte layouts follow Solaar) ----
