@@ -12,7 +12,7 @@ MX Master Win is a portable Windows utility for the Logitech MX Master 4. It is 
 
 It is the Windows edition of the same product as [MX Master Mac](https://github.com/stone5202/MXMasterMac) for macOS, with the same features and the same way of setting them up. Run one edition on each computer and MX Flow takes the mouse back and forth between Windows and Mac.
 
-> Current version: 2.1 · Interface languages: Traditional Chinese, English (follows the system by default)
+> Current version: 2.2 · Interface languages: Traditional Chinese, English (follows the system by default)
 >
 > Up to 1.1 the app was called MX Master Portable. Put the new `MXMasterWin.exe` in the same folder and it picks up the old settings file on first run.
 
@@ -44,6 +44,16 @@ See the [changelog](CHANGELOG.en.md) or [GitHub Releases](https://github.com/sto
   Button mapping · Gestures & ring · Pointer & wheel
 </p>
 
+<p align="center">
+  <img src="docs/screenshots/haptics.en.png" width="45%" alt="Haptics page">
+  &nbsp;
+  <img src="docs/screenshots/battery.en.png" width="45%" alt="Battery page">
+</p>
+
+<p align="center">
+  Haptics · Battery
+</p>
+
 ## Download and use
 
 1. Download `MXMasterWin.exe` from [Releases](https://github.com/stone5202/MXMasterWin/releases/latest).
@@ -56,10 +66,13 @@ The EXE is not code-signed, so Windows SmartScreen may warn on first launch. On 
 
 - **MX Flow**: keep pushing the pointer against a screen edge and the mouse moves to the Easy-Switch channel you chose (another computer). Each of the four edges can target its own channel, the trigger time is adjustable (0.1–2.0 s), and a held key (Ctrl, Alt, Shift, Win or a button on the mouse) can be required; with several monitors only the outer edge of the outermost monitor triggers. The page also lists the computer name and connection type stored on each of the three channels, with a button to switch directly, and the tray menu has an MX Flow switch.
 - **Button mapping**: choose an action for the middle button, gesture button, both side buttons, thumb wheel left and right, the Actions Ring button and the wheel mode button.
-- **Built-in actions**: about 50, including back / forward, copy / paste / cut, undo / redo, select all / save / find, Task View, show desktop, switch virtual desktop, Alt+Tab, minimize / maximize / close / snap window, play / pause, previous / next track, volume and mute, File Explorer, Windows Settings, Search, Start menu, Calculator, Task Manager, screenshot, emoji panel, clipboard history, quick settings, lock PC, browser tabs (new / close / reopen / refresh / zoom), type today's date or the current time, Enter, Esc, Delete, and "MX Settings", which opens this app's settings window.
+- **Built-in actions**: about 55, including back / forward, copy / paste / cut, undo / redo, select all / save / find, Task View, show desktop, switch virtual desktop, Alt+Tab, minimize / maximize / close / snap window, play / pause, previous / next track, volume and mute, File Explorer, Windows Settings, Search, Start menu, Calculator, Task Manager, screenshot, emoji panel, clipboard history, quick settings, lock PC, browser tabs (new / close / reopen / refresh / zoom), type today's date or the current time, Enter, Esc, Delete, "MX Settings", which opens this app's settings window, plus precision mode (hold / toggle), toggle ratchet / free spin and switch to channel 1 / 2 / 3 (Easy-Switch).
 - **Custom actions**: any key combination (for example `Ctrl+Shift+T` or `Win+R`), or launch a program or open a file, folder or URL.
-- **Actions Ring**: all eight positions are customizable, and the editor shows a numbered picture of the ring. Use it in hold mode (hold to show, move to choose, release to run) or click mode (press once to show, then left-click, with no holding). There are two looks, Ring and Bubbles, in dark or white, with adjustable overall size, bubble size and opacity. The mouse taps lightly as the pointer moves onto another slice (can be turned off; six waveforms to choose from).
-- **Four-way thumb gestures**: hold the gesture button and swipe; all four directions are customizable.
+- **Actions Ring**: all eight positions are customizable, and the editor shows a numbered picture of the ring. Use it in hold mode (hold to show, move to choose, release to run) or click mode (press once to show, then left-click, with no holding). There are two looks, Ring and Bubbles, in dark or white, with adjustable overall size, bubble size and opacity. The mouse taps lightly as the pointer moves onto another slice (turn it off or change the waveform on the Haptics page).
+- **Four-way thumb gestures**: hold the gesture button and swipe; all four directions and the sensitivity are customizable.
+- **Haptics**: set the mouse's haptic strength and four haptic moments separately: ring slices, gesture recognized, before switching computers and mode changes. Each can be switched on or off, given one of six waveforms and tried.
+- **Precision mode**: hold the chosen button to drop the pointer to a slower DPI (400 by default) for detailed work such as photo editing or alignment; release to go back. It can also be toggled from the ring or a gesture. When precision mode or the wheel mode changes, the new state shows briefly at the bottom of the screen.
+- **Battery**: shows the level, whether it is charging and the connection. When the level drops to the threshold (15% by default) while not charging, one tray notification appears, and haptics can pause automatically to save power.
 - **Device settings**: shows battery level and firmware version; adjusts pointer speed (DPI), SmartShift, scroll direction (Standard / Natural) and haptic feedback strength. Values you apply are saved and re-applied at start-up and whenever the mouse reconnects.
 - **Recovers after a connection change**: when the mouse goes to another computer and comes back, or moves between Bluetooth and Logi Bolt, the special buttons are enabled again automatically.
 - **Connections**: Bluetooth LE and the Logi Bolt receiver.
@@ -86,7 +99,7 @@ The EXE is not code-signed, so Windows SmartScreen may warn on first launch. On 
 
 - Standard buttons and horizontal scroll: a Windows low-level mouse hook (`WH_MOUSE_LL`) plus `SendInput` for keyboard actions.
 - Special buttons (gesture button `0x00C3`, Actions Ring button `0x01A0`): temporary diversion is set through Windows' built-in HID interface with HID++ 2.0 feature `0x1B04`, and button notifications arrive through Raw Input. Diversion is released when the app is paused or exits.
-- Device settings: HID++ features `0x1004` (battery), `0x0003` (firmware), `0x2201` (DPI), `0x2111` (SmartShift), `0x2121` (scroll direction) and `0x19B0` (haptics). Every write is read back to confirm it.
+- Device settings: HID++ features `0x1004` (battery), `0x0003` (firmware), `0x2201` (DPI), `0x2111` (SmartShift), `0x2121` (scroll direction) and `0x19B0` (haptic strength and waveform playback). Every write is read back to confirm it. Precision mode writes a lower DPI temporarily; the normal speed is written back on release, pause, exit, or before the mouse moves to another computer.
 - MX Flow: Raw Input supplies this mouse's own movement, which is used to tell whether the pointer is held against the outer edge of the outermost monitor and still being pushed outward. HID++ feature `0x1814` (change host) sends the switch and `0x1815` reads the host name stored on each channel.
 - Reconnect detection: when the mouse sends input again after a pause, the diversion state is read back and re-applied if it is gone; when the current connection stops answering, the app looks for the mouse on the other connections (Bluetooth / Bolt).
 
