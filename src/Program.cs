@@ -60,7 +60,7 @@ namespace MXMasterWin
             }
         }
 
-        internal const string Version = "2.1";
+        internal const string Version = "2.2";
 
         // Set before closing the main window to start the app again (used after a language change).
         internal static bool RestartRequested;
@@ -182,6 +182,12 @@ namespace MXMasterWin
         InsertDate,
         InsertTime,
         OpenSettings,
+        PrecisionHold,
+        PrecisionToggle,
+        WheelModeToggle,
+        HostChannel1,
+        HostChannel2,
+        HostChannel3,
         CustomShortcut,
         LaunchProgram
     }
@@ -320,6 +326,12 @@ namespace MXMasterWin
             {
                 new ActionChoice(MappedAction.PassThrough, Lang.T("保留原功能（不攔截）", "Keep original function")),
                 new ActionChoice(MappedAction.OpenSettings, Lang.T("MX設定", "MX Settings")),
+                new ActionChoice(MappedAction.PrecisionHold, Lang.T("精準模式（按住）", "Precision mode (hold)")),
+                new ActionChoice(MappedAction.PrecisionToggle, Lang.T("精準模式（開／關）", "Precision mode (toggle)")),
+                new ActionChoice(MappedAction.WheelModeToggle, Lang.T("切換段落／自由滾動", "Toggle ratchet / free spin")),
+                new ActionChoice(MappedAction.HostChannel1, Lang.T("切換到頻道 1（Easy-Switch）", "Switch to channel 1 (Easy-Switch)")),
+                new ActionChoice(MappedAction.HostChannel2, Lang.T("切換到頻道 2（Easy-Switch）", "Switch to channel 2 (Easy-Switch)")),
+                new ActionChoice(MappedAction.HostChannel3, Lang.T("切換到頻道 3（Easy-Switch）", "Switch to channel 3 (Easy-Switch)")),
                 new ActionChoice(MappedAction.BrowserBack, Lang.T("上一頁", "Back")),
                 new ActionChoice(MappedAction.BrowserForward, Lang.T("下一頁", "Forward")),
                 new ActionChoice(MappedAction.Copy, Lang.T("複製", "Copy")),
@@ -401,6 +413,12 @@ namespace MXMasterWin
                 case MappedAction.InsertDate: return Lang.T("今天日期", "Date");
                 case MappedAction.InsertTime: return Lang.T("目前時間", "Time");
                 case MappedAction.OpenSettings: return Lang.T("MX設定", "MX Settings");
+                case MappedAction.PrecisionHold:
+                case MappedAction.PrecisionToggle: return Lang.T("精準模式", "Precision");
+                case MappedAction.WheelModeToggle: return Lang.T("滾動模式", "Wheel mode");
+                case MappedAction.HostChannel1: return Lang.T("頻道 1", "Channel 1");
+                case MappedAction.HostChannel2: return Lang.T("頻道 2", "Channel 2");
+                case MappedAction.HostChannel3: return Lang.T("頻道 3", "Channel 3");
             }
             foreach (ActionChoice choice in CreateChoices())
                 if (choice.Action == action) return choice.Label;
@@ -975,6 +993,7 @@ namespace MXMasterWin
     internal sealed class GestureDialog : Form
     {
         private readonly ActionPicker[] pickers = new ActionPicker[4];
+        private readonly SliderBar sensitivity = new SliderBar();
 
         // Up, right, down, left.
         public static ActionBinding[] Defaults()
@@ -986,11 +1005,11 @@ namespace MXMasterWin
             };
         }
 
-        private GestureDialog(ActionBinding[] current)
+        private GestureDialog(ActionBinding[] current, int currentSensitivity)
         {
             float scale = Theme.GetScale();
             Func<int, int> s = delegate(int v) { return (int)Math.Round(v * scale); };
-            DialogStyle.Apply(this, Lang.T("自訂拇指手勢", "Customize gestures"), 470, 268, scale);
+            DialogStyle.Apply(this, Lang.T("自訂拇指手勢", "Customize gestures"), 470, 330, scale);
 
             Controls.Add(new Label
             {
@@ -1012,34 +1031,60 @@ namespace MXMasterWin
                 pickers[i].Binding = current[i];
             }
 
+            // How far a swipe must travel before a direction is chosen; 50% is the original distance.
+            Controls.Add(new Label { Text = Lang.T("靈敏度", "Sensitivity"), AutoSize = false, Location = new Point(s(20), s(211)), Size = new Size(s(82), s(22)) });
+            var readout = new Label { AutoSize = false, TextAlign = ContentAlignment.MiddleRight, Font = new Font(Theme.UiFont, 9.5F, FontStyle.Bold), Location = new Point(s(392), s(209)), Size = new Size(s(58), s(26)) };
+            sensitivity.Minimum = 0;
+            sensitivity.Maximum = 100;
+            sensitivity.Increment = 5;
+            sensitivity.Location = new Point(s(100), s(208));
+            sensitivity.Size = new Size(s(290), s(28));
+            EventHandler showSensitivity = delegate { readout.Text = sensitivity.Value + "%"; };
+            sensitivity.ValueChanged += showSensitivity;
+            sensitivity.Value = currentSensitivity;
+            showSensitivity(null, EventArgs.Empty);
+            Controls.Add(sensitivity);
+            Controls.Add(readout);
+            Controls.Add(new Label
+            {
+                Text = Lang.T("越高，滑動越短的距離就會判定方向", "Higher means a shorter swipe picks a direction"),
+                AutoSize = true,
+                ForeColor = Theme.Muted,
+                Font = new Font(Theme.UiFont, 8.5F),
+                Location = new Point(s(106), s(240))
+            });
+
             Button reset = Theme.CreateButton(Lang.T("還原預設", "Reset"), false);
-            reset.Location = new Point(s(20), s(216));
+            reset.Location = new Point(s(20), s(278));
             reset.Size = new Size(s(100), s(34));
             reset.Click += delegate
             {
                 ActionBinding[] defaults = Defaults();
                 for (int i = 0; i < 4; i++) pickers[i].Binding = defaults[i];
+                sensitivity.Value = 50;
             };
             Controls.Add(reset);
             Button ok = Theme.CreateButton(Lang.T("確定", "OK"), true);
-            ok.Location = new Point(s(240), s(216));
+            ok.Location = new Point(s(240), s(278));
             ok.Size = new Size(s(100), s(34));
             ok.Click += delegate { DialogResult = DialogResult.OK; };
             Controls.Add(ok);
             Button cancel = Theme.CreateButton(Lang.T("取消", "Cancel"), false);
-            cancel.Location = new Point(s(350), s(216));
+            cancel.Location = new Point(s(350), s(278));
             cancel.Size = new Size(s(100), s(34));
             cancel.Click += delegate { DialogResult = DialogResult.Cancel; };
             Controls.Add(cancel);
         }
 
-        public static ActionBinding[] Prompt(IWin32Window owner, ActionBinding[] current)
+        // sensitivity is updated only when the dialog is confirmed.
+        public static ActionBinding[] Prompt(IWin32Window owner, ActionBinding[] current, ref int sensitivity)
         {
-            using (var dialog = new GestureDialog(current))
+            using (var dialog = new GestureDialog(current, sensitivity))
             {
                 if (dialog.ShowDialog(owner) != DialogResult.OK) return null;
                 var result = new ActionBinding[4];
                 for (int i = 0; i < 4; i++) result[i] = dialog.pickers[i].Binding;
+                sensitivity = dialog.sensitivity.Value;
                 return result;
             }
         }
@@ -1887,9 +1932,46 @@ namespace MXMasterWin
         private readonly ComboBox ringColor = new ComboBox();
         private readonly CheckBox ringHaptic = new ToggleSwitch();
         private readonly ComboBox ringHapticWave = new ComboBox();
-        private Button hapticTry;
-        // Short haptic waveforms that suit sliding across the ring, in menu order (ids follow Solaar;
-        // the same list as the macOS version). 0x04 is the default.
+        // Haptics page: the mouse's strength, and which moments tap (each with its own waveform).
+        private readonly CheckBox gestureHaptic = new ToggleSwitch();
+        private readonly ComboBox gestureHapticWave = new ComboBox();
+        private readonly CheckBox flowHaptic = new ToggleSwitch();
+        private readonly ComboBox flowHapticWave = new ComboBox();
+        private readonly CheckBox modeHaptic = new ToggleSwitch();
+        private readonly ComboBox modeHapticWave = new ComboBox();
+        private readonly Dictionary<CheckBox, Button> hapticTryButtons = new Dictionary<CheckBox, Button>();
+        private readonly SliderBar hapticStrength = new SliderBar();
+        // Low battery: one tray notification per discharge, and optionally no automatic taps.
+        private readonly CheckBox lowBatteryHapticPause = new ToggleSwitch();
+        private readonly Label hapticPauseNote = new Label();
+        private readonly CheckBox lowBatteryAlert = new ToggleSwitch();
+        private readonly ComboBox lowBatteryLevel = new ComboBox();
+        private readonly Label batteryLevel = new Label();
+        private readonly Label batteryDetail = new Label();
+        private static readonly int[] LowBatteryLevels = { 5, 10, 15, 20, 25, 30 };
+        private bool lowBatteryNotified;
+        // Gesture sensitivity, 0-100; 50 keeps the original 40 px / 65 px distances.
+        private int gestureSensitivity = 50;
+        private readonly Label hapticStrengthValue = new Label();
+        private Button hapticStrengthApply;
+        // Pointer page, right column: precision mode and the on-screen hint.
+        private readonly SliderBar precisionDpi = new SliderBar();
+        private readonly Label precisionDpiValue = new Label();
+        private readonly ComboBox precisionTrigger = new ComboBox();
+        private readonly CheckBox modeHud = new ToggleSwitch();
+        private readonly ModeOverlay modeOverlay = new ModeOverlay();
+        // Buttons that can be held, in the order of the trigger list (after "None").
+        private static readonly MouseInput[] PrecisionInputs =
+            { MouseInput.Middle, MouseInput.XButton2, MouseInput.XButton1, MouseInput.GestureButton, MouseInput.ActionRingButton };
+        private DeviceSnapshot lastSnapshot;
+        private bool precisionActive;
+        private int precisionNormalDpi;
+        private MouseInput? precisionHeldBy;    // the button holding precision mode on, if any
+        private int precisionSeq;               // only the latest requested speed is written
+        private readonly object precisionLock = new object();
+        private bool loadingPrecision;
+        // Short haptic waveforms shared by every haptic moment, in menu order (ids follow Solaar;
+        // the same list as the macOS version). 0x04 is the ring's default.
         private static readonly int[] HapticWaves = { 0x1B, 0x04, 0x01, 0x03, 0x00, 0x02 };
         private const int DefaultHapticWave = 1;
         private readonly System.Windows.Forms.Timer appearanceSave = new System.Windows.Forms.Timer();
@@ -1991,7 +2073,10 @@ namespace MXMasterWin
 
             // Hooked up after loading so that restoring the saved state does not rewrite the file.
             foreach (ActionPicker picker in selectors.Values)
+            {
                 picker.Changed += SaveSettings;
+                picker.Changed += RefreshPrecisionTrigger;
+            }
             gestureMode.CheckedChanged += delegate { SaveSettings(); };
             // Sliders report every step of a drag; apply at once but write the file after a pause.
             appearanceSave.Interval = 500;
@@ -2007,21 +2092,24 @@ namespace MXMasterWin
             bubbleSize.ValueChanged += appearanceChanged;
             ringOpacity.ValueChanged += appearanceChanged;
             ringColor.SelectedIndexChanged += appearanceChanged;
-            ringHaptic.CheckedChanged += delegate
+            WireHaptic(ringHaptic, ringHapticWave);
+            WireHaptic(gestureHaptic, gestureHapticWave);
+            WireHaptic(flowHaptic, flowHapticWave);
+            WireHaptic(modeHaptic, modeHapticWave);
+            actionRing.SlotEntered = delegate { PlayHaptic(ringHaptic, ringHapticWave); };
+            precisionDpi.ValueChanged += delegate
             {
-                UpdateHapticControls();
-                SaveSettings();
+                precisionDpiValue.Text = precisionDpi.Value + " DPI";
+                if (loadingPrecision) return;
+                appearanceSave.Stop();
+                appearanceSave.Start();
             };
-            // Picking a waveform plays it once so it can be felt straight away.
-            ringHapticWave.SelectedIndexChanged += delegate
-            {
-                PlayRingHaptic();
-                SaveSettings();
-            };
-            actionRing.SlotEntered = delegate
-            {
-                if (ringHaptic.Checked) PlayRingHaptic();
-            };
+            precisionTrigger.SelectedIndexChanged += delegate { if (!loadingPrecision) ApplyPrecisionTrigger(); };
+            modeHud.CheckedChanged += delegate { SaveSettings(); };
+            lowBatteryHapticPause.CheckedChanged += delegate { UpdateHapticPauseNote(); UpdateBatteryPage(lastSnapshot); SaveSettings(); };
+            lowBatteryAlert.CheckedChanged += delegate { BatterySettingsChanged(); SaveSettings(); };
+            lowBatteryLevel.SelectedIndexChanged += delegate { BatterySettingsChanged(); SaveSettings(); };
+            ActionRunner.MouseAction = RunMouseAction;
             startMinimized.CheckedChanged += delegate { SaveSettings(); };
             actionRingMode.CheckedChanged += delegate { SaveSettings(); };
             ringClickMode.CheckedChanged += delegate
@@ -2196,6 +2284,18 @@ namespace MXMasterWin
             }
             else
             {
+                lastSnapshot = snapshot;
+                if (snapshot.DpiFeature == 0x2201 && snapshot.DpiStep > 0 && snapshot.DpiMax > snapshot.DpiMin)
+                {
+                    loadingPrecision = true;
+                    int wanted = (int)precisionDpi.Value;
+                    precisionDpi.Minimum = snapshot.DpiMin;
+                    precisionDpi.Maximum = Math.Min(snapshot.DpiMax, 4000);
+                    precisionDpi.Increment = snapshot.DpiStep;
+                    precisionDpi.Value = wanted;
+                    precisionDpiValue.Text = precisionDpi.Value + " DPI";
+                    loadingPrecision = false;
+                }
                 chip.Connected = true;
                 chip.ConnectionText = snapshot.Transport == "BOLT" ? "Logi Bolt" : "Bluetooth";
                 // A sleeping mouse can miss a read; keep the last good value instead of blanking it.
@@ -2203,9 +2303,11 @@ namespace MXMasterWin
                 {
                     chip.BatteryPercent = snapshot.BatteryPercent;
                     chip.Charging = snapshot.BatteryCharging;
+                    BatteryChanged();
                 }
             }
             chip.Invalidate();
+            UpdateBatteryPage(snapshot);
             if (liveLog.Checked && snapshot != null)
                 foreach (string line in snapshot.Raw)
                     AddLog(DateTime.Now.ToString("HH:mm:ss.fff") + " Device " + line);
@@ -2256,8 +2358,10 @@ namespace MXMasterWin
             AddNavigation(Lang.T("按鈕", "Buttons"), "", 0);
             AddNavigation(Lang.T("手勢與圓環", "Gestures & Ring"), "", 1);
             AddNavigation(Lang.T("指標與滾輪", "Pointer & Wheel"), "", 2);
-            AddNavigation("MX Flow", "", 3);
-            AddNavigation(Lang.T("進階", "Advanced"), "", 4);
+            AddNavigation(Lang.T("觸覺回饋", "Haptics"), "\uE877", 3);   // Vibrate
+            AddNavigation("MX Flow", "", 4);
+            AddNavigation(Lang.T("電池", "Battery"), "\uE83F", 5);   // Battery10
+            AddNavigation(Lang.T("進階", "Advanced"), "", 6);
 
             chip.Location = new Point(S(24), S(566));
             chip.Size = new Size(S(202), S(36));
@@ -2297,7 +2401,7 @@ namespace MXMasterWin
             gestureMode.Location = new Point(S(18), S(58));
             gestureMode.Size = new Size(column, S(26));
             modePage.Controls.Add(gestureMode);
-            AddHint(modePage, Lang.T("按住並滑動；四個方向的動作可用「自訂手勢…」設定", "Hold and swipe; set each direction with Customize gestures…"), 88);
+            AddHint(modePage, Lang.T("按住並滑動；方向動作與靈敏度在「自訂手勢…」設定", "Hold and swipe; directions and sensitivity are under Customize gestures…"), 88);
             AddDivider(modePage, 122, column);
 
             actionRingMode.Text = Lang.T("Actions Ring 八方向圓環", "Actions Ring eight-way menu");
@@ -2332,7 +2436,7 @@ namespace MXMasterWin
             customizeGestures.Size = new Size(S(144), S(34));
             customizeGestures.Click += delegate
             {
-                ActionBinding[] edited = GestureDialog.Prompt(this, gestureBindings);
+                ActionBinding[] edited = GestureDialog.Prompt(this, gestureBindings, ref gestureSensitivity);
                 if (edited == null) return;
                 gestureBindings = edited;
                 UpdateGestureNames();
@@ -2369,7 +2473,7 @@ namespace MXMasterWin
                 Size = new Size(S(240), S(20))
             });
 
-            // Right column under the preview: ring colour, and a haptic tick as the pointer enters each slice.
+            // Right column under the preview: ring colour, and where the slice haptics went.
             int ringRight = 372;
             modePage.Controls.Add(new Label { Text = Lang.T("圓環顏色", "Ring color"), AutoSize = false, Location = new Point(S(ringRight), S(330)), Size = new Size(S(84), S(22)) });
             ringColor.DropDownStyle = ComboBoxStyle.DropDownList;
@@ -2380,34 +2484,30 @@ namespace MXMasterWin
             ringColor.Width = S(150);
             modePage.Controls.Add(ringColor);
 
-            ringHaptic.Text = Lang.T("滑過選項時震動", "Haptic tick on each slice");
-            ringHaptic.Checked = true;
-            ringHaptic.Location = new Point(S(ringRight), S(362));
-            ringHaptic.Size = new Size(S(376), S(26));
-            modePage.Controls.Add(ringHaptic);
-            AddHintAt(modePage, Lang.T("移到另一格時輕震；強度依「指標與滾輪」頁的觸覺回饋", "Strength follows the haptic feedback setting"), ringRight, 390);
-            modePage.Controls.Add(new Label { Text = Lang.T("震動波形", "Waveform"), AutoSize = false, Location = new Point(S(ringRight), S(418)), Size = new Size(S(84), S(22)) });
-            ringHapticWave.DropDownStyle = ComboBoxStyle.DropDownList;
-            ringHapticWave.Items.Add(Lang.T("極輕", "Whisper"));
-            ringHapticWave.Items.Add(Lang.T("輕微（預設）", "Subtle (default)"));
-            ringHapticWave.Items.Add(Lang.T("柔和", "Soft"));
-            ringHapticWave.Items.Add(Lang.T("柔和碰撞", "Soft bump"));
-            ringHapticWave.Items.Add(Lang.T("清脆", "Crisp"));
-            ringHapticWave.Items.Add(Lang.T("清脆碰撞", "Crisp bump"));
-            ringHapticWave.SelectedIndex = DefaultHapticWave;
-            ringHapticWave.Location = new Point(S(ringRight + 86), S(416));
-            ringHapticWave.Width = S(150);
-            modePage.Controls.Add(ringHapticWave);
-            hapticTry = Theme.CreateButton(Lang.T("試震", "Try"), false);
-            hapticTry.Location = new Point(S(ringRight + 244), S(414));
-            hapticTry.Size = new Size(S(64), S(28));
-            hapticTry.Click += delegate { PlayRingHaptic(); };
-            modePage.Controls.Add(hapticTry);
+            // The slice tick now lives on the Haptics page with the other haptic moments.
+            modePage.Controls.Add(new Label { Text = Lang.T("滑過選項時震動", "Haptic tick on each slice"), AutoSize = false, Location = new Point(S(ringRight), S(370)), Size = new Size(S(250), S(22)) });
+            var hapticLink = new LinkLabel
+            {
+                Text = Lang.T("在「觸覺回饋」頁設定 →", "Set it on the Haptics page →"),
+                AutoSize = true,
+                LinkColor = Theme.Accent,
+                ActiveLinkColor = Theme.AccentDown,
+                LinkBehavior = LinkBehavior.HoverUnderline,
+                UseMnemonic = false,
+                Font = new Font(Theme.UiFont, 9F),
+                Location = new Point(S(ringRight), S(396))
+            };
+            hapticLink.LinkClicked += delegate { ShowPage(3); };
+            modePage.Controls.Add(hapticLink);
 
-            // ---- Page 2: pointer, wheel and haptics. Filled in on first use, once HID++ exists. ----
+            // ---- Page 2: pointer and wheel. The left part is filled in on first use, once HID++ exists. ----
             devicePage = AddPage("");
+            BuildPrecisionColumn(devicePage);
 
-            // ---- Page 3: MX Flow, switching computers at a screen edge ----
+            // ---- Page 3: haptics ----
+            BuildHapticsPage(AddPage(Lang.T("觸覺回饋", "Haptics")));
+
+            // ---- Page 4: MX Flow, switching computers at a screen edge ----
             CardPanel switchPage = AddPage("MX Flow");
             edgeSwitch.Text = Lang.T("啟用 MX Flow：游標推到螢幕邊緣時切換電腦", "Enable MX Flow: switch computers at a screen edge");
             edgeSwitch.Location = new Point(S(18), S(58));
@@ -2507,7 +2607,10 @@ namespace MXMasterWin
             AddHint(switchPage, Lang.T("切過去後，另一台電腦也要執行本程式並設定邊緣才能同樣切回來；否則請按滑鼠底部的 Easy-Switch 鍵。不傳送剪貼簿或檔案",
                 "To come back the same way the other computer must run this app with an edge set; otherwise use the Easy-Switch button. No clipboard or files"), 428);
 
-            // ---- Page 4: everything else ----
+            // ---- Page 5: battery ----
+            BuildBatteryPage(AddPage(Lang.T("電池", "Battery")));
+
+            // ---- Page 6: everything else ----
             CardPanel advancedPage = AddPage(Lang.T("進階", "Advanced"));
             enableSwitch.Text = Lang.T("啟用按鍵對應", "Enable button mapping");
             enableSwitch.Checked = true;
@@ -2656,9 +2759,251 @@ namespace MXMasterWin
             return page;
         }
 
+        // Right column of the pointer page, beside the embedded device editor.
+        private void BuildPrecisionColumn(CardPanel page)
+        {
+            int x = 508, width = 240;
+            page.Controls.Add(new Label { Text = Lang.T("精準模式", "Precision mode"), AutoSize = true, Font = new Font(Theme.UiFont, 10F, FontStyle.Bold), Location = new Point(S(x), S(22)) });
+            AddWrappedHint(page, Lang.T("按住觸發按鍵時暫時降到較低的速度，放開就恢復；適合修圖、對齊等精細操作",
+                "Hold the trigger to drop to a slower speed for detailed work; release to go back"), x, 46, width, 40);
+
+            page.Controls.Add(new Label { Text = Lang.T("精準速度", "Precision speed"), AutoSize = false, Location = new Point(S(x), S(96)), Size = new Size(S(140), S(22)) });
+            precisionDpiValue.AutoSize = false;
+            precisionDpiValue.TextAlign = ContentAlignment.MiddleRight;
+            precisionDpiValue.Font = new Font(Theme.UiFont, 9.5F, FontStyle.Bold);
+            precisionDpiValue.Location = new Point(S(x + width - 100), S(96));
+            precisionDpiValue.Size = new Size(S(100), S(22));
+            page.Controls.Add(precisionDpiValue);
+            precisionDpi.Minimum = 200;
+            precisionDpi.Maximum = 4000;
+            precisionDpi.Increment = 50;
+            precisionDpi.Value = 400;
+            precisionDpi.Location = new Point(S(x - 6), S(120));
+            precisionDpi.Size = new Size(S(width + 6), S(28));
+            precisionDpiValue.Text = precisionDpi.Value + " DPI";
+            page.Controls.Add(precisionDpi);
+
+            page.Controls.Add(new Label { Text = Lang.T("觸發按鍵", "Trigger"), AutoSize = false, Location = new Point(S(x), S(160)), Size = new Size(S(140), S(22)) });
+            precisionTrigger.DropDownStyle = ComboBoxStyle.DropDownList;
+            precisionTrigger.Items.AddRange(new object[]
+            {
+                Lang.T("不使用", "None"), Lang.T("中鍵", "Middle button"), Lang.T("側鍵 2・上一頁", "Side 2 · Back"), Lang.T("側鍵 3・下一頁", "Side 3 · Forward"),
+                Lang.T("拇指手勢鍵", "Gesture button"), Lang.T("Actions Ring 鍵", "Actions Ring button")
+            });
+            precisionTrigger.SelectedIndex = 0;
+            precisionTrigger.Location = new Point(S(x), S(184));
+            precisionTrigger.Width = S(width);
+            page.Controls.Add(precisionTrigger);
+            AddWrappedHint(page, Lang.T("手勢鍵與圓環鍵要先關閉手勢或圓環；也可以在「按鈕」頁或圓環選「精準模式」",
+                "The gesture and ring buttons need their gestures or ring off. Precision mode can also go on the Buttons page or the ring"), x, 214, width, 54);
+
+            page.Controls.Add(new Panel { BackColor = Theme.Divider, Location = new Point(S(x), S(280)), Size = new Size(S(width), 1) });
+            page.Controls.Add(new Label { Text = Lang.T("切換提示", "On-screen feedback"), AutoSize = true, Font = new Font(Theme.UiFont, 10F, FontStyle.Bold), Location = new Point(S(x), S(294)) });
+            modeHud.Text = Lang.T("顯示切換提示", "Show mode hints");
+            modeHud.Checked = true;
+            modeHud.Location = new Point(S(x), S(320));
+            modeHud.Size = new Size(S(width), S(26));
+            page.Controls.Add(modeHud);
+            AddWrappedHint(page, Lang.T("精準模式或滾動模式切換時，在螢幕下方短暫顯示目前狀態；震動在「觸覺回饋」頁設定",
+                "Briefly shows the new state at the bottom of the screen; the matching tap is set on the Haptics page"), x, 350, width, 54);
+        }
+
+        private void BuildHapticsPage(CardPanel page)
+        {
+            int right = 748;
+            page.Controls.Add(new Label { Text = Lang.T("觸覺強度", "Strength"), AutoSize = false, Location = new Point(S(18), S(62)), Size = new Size(S(96), S(22)) });
+            hapticStrength.Minimum = 0;
+            hapticStrength.Maximum = 100;
+            hapticStrength.Increment = 5;
+            hapticStrength.Location = new Point(S(114), S(58));
+            hapticStrength.Size = new Size(S(420), S(30));
+            hapticStrength.Enabled = false;
+            hapticStrength.ValueChanged += delegate { hapticStrengthValue.Text = hapticStrength.Value > 0 ? hapticStrength.Value.ToString() : Lang.T("關閉", "Off"); };
+            page.Controls.Add(hapticStrength);
+            hapticStrengthValue.AutoSize = false;
+            hapticStrengthValue.TextAlign = ContentAlignment.MiddleCenter;
+            hapticStrengthValue.Font = new Font(Theme.UiFont, 9.5F, FontStyle.Bold);
+            hapticStrengthValue.Location = new Point(S(540), S(58));
+            hapticStrengthValue.Size = new Size(S(80), S(30));
+            hapticStrengthValue.Text = "—";
+            page.Controls.Add(hapticStrengthValue);
+            hapticStrengthApply = Theme.CreateButton(Lang.T("套用", "Apply"), false);
+            hapticStrengthApply.Size = new Size(S(80), S(30));
+            hapticStrengthApply.Location = new Point(S(right - 80), S(58));
+            hapticStrengthApply.Enabled = false;
+            hapticStrengthApply.Click += delegate { ApplyHapticStrength(); };
+            page.Controls.Add(hapticStrengthApply);
+            AddHint(page, Lang.T("滑鼠本身的震動強度。拉到最左邊為關閉，下方所有震動都會跟著停用",
+                "The mouse's own haptic strength. Fully left turns it off, and every tap below with it"), 94);
+
+            // Low-battery pause: the threshold is the one set under Battery on the pointer page.
+            lowBatteryHapticPause.Text = Lang.T("電量低時暫停震動", "Pause on low battery");
+            lowBatteryHapticPause.Checked = true;
+            lowBatteryHapticPause.Location = new Point(S(18), S(118));
+            lowBatteryHapticPause.Size = new Size(S(250), S(26));
+            page.Controls.Add(lowBatteryHapticPause);
+            hapticPauseNote.AutoSize = false;
+            hapticPauseNote.AutoEllipsis = true;
+            hapticPauseNote.UseMnemonic = false;
+            hapticPauseNote.Font = new Font(Theme.UiFont, 8.5F);
+            hapticPauseNote.TextAlign = ContentAlignment.MiddleLeft;
+            hapticPauseNote.Location = new Point(S(276), S(118));
+            hapticPauseNote.Size = new Size(S(right - 276), S(26));
+            page.Controls.Add(hapticPauseNote);
+            AddDivider(page, 152, S(right - 18));
+
+            page.Controls.Add(new Label { Text = Lang.T("震動時機", "When to tap"), AutoSize = true, Font = new Font(Theme.UiFont, 10F, FontStyle.Bold), Location = new Point(S(18), S(162)) });
+            AddHint(page, Lang.T("選擇哪些操作要讓滑鼠輕震一下；每一種都可以挑不同的波形，選了會立刻在滑鼠上震一下",
+                "Choose which moments make the mouse tap. Each can use its own waveform; picking one plays it on the mouse"), 186);
+            // Default waveforms, as indexes into HapticWaves: subtle, soft bump, crisp bump, crisp.
+            AddHapticRow(page, ringHaptic, ringHapticWave, Lang.T("Actions Ring 滑過選項", "Actions Ring slices"),
+                Lang.T("游標移到圓環的另一格時", "As the pointer enters another slice"), 214, DefaultHapticWave);
+            AddHapticRow(page, gestureHaptic, gestureHapticWave, Lang.T("手勢方向確定", "Gesture recognized"),
+                Lang.T("按住手勢鍵滑動、方向判定完成時", "When a thumb-gesture direction is locked in"), 272, 3);
+            AddHapticRow(page, flowHaptic, flowHapticWave, Lang.T("切換電腦", "Computer switch"),
+                Lang.T("MX Flow 或「切換到頻道」動作讓滑鼠離開之前", "Before MX Flow or a Switch-to-channel action moves the mouse away"), 330, 5);
+            AddHapticRow(page, modeHaptic, modeHapticWave, Lang.T("模式切換", "Mode changes"),
+                Lang.T("精準模式開關、段落／自由滾動切換時", "Precision mode on or off, ratchet / free spin"), 388, 4);
+        }
+
+        // Battery page: the level the mouse reports, the low-battery alert and its threshold
+        // (also used by the haptics pause on the Haptics page).
+        private void BuildBatteryPage(CardPanel page)
+        {
+            int right = 748;
+            batteryLevel.AutoSize = true;
+            batteryLevel.Font = new Font(Theme.UiFont, 20F, FontStyle.Bold);
+            batteryLevel.Location = new Point(S(16), S(52));
+            batteryLevel.Text = "—";
+            page.Controls.Add(batteryLevel);
+            batteryDetail.AutoSize = false;
+            batteryDetail.AutoEllipsis = true;
+            batteryDetail.UseMnemonic = false;
+            batteryDetail.ForeColor = Theme.Muted;
+            batteryDetail.TextAlign = ContentAlignment.MiddleLeft;
+            batteryDetail.Location = new Point(S(130), S(60));
+            batteryDetail.Size = new Size(S(440), S(24));
+            batteryDetail.Text = Lang.T("尚未讀到電量", "No battery reading yet");
+            page.Controls.Add(batteryDetail);
+            Button reload = Theme.CreateButton(Lang.T("重新讀取", "Reload"), false);
+            reload.Size = new Size(S(110), S(30));
+            reload.Location = new Point(S(right - 110), S(58));
+            reload.Click += delegate { RefreshBattery(); };
+            page.Controls.Add(reload);
+            AddHint(page, Lang.T("電量由滑鼠回報，每 10 分鐘讀取一次；開啟本頁或按「重新讀取」時也會讀取",
+                "Reported by the mouse and read every 10 minutes, and whenever this page opens or Reload is pressed"), 100);
+            AddDivider(page, 130, S(right - 18));
+
+            lowBatteryAlert.Text = Lang.T("低電量提醒", "Low-battery alert");
+            lowBatteryAlert.Checked = true;
+            lowBatteryAlert.Location = new Point(S(18), S(144));
+            lowBatteryAlert.Size = new Size(S(right - 18), S(26));
+            page.Controls.Add(lowBatteryAlert);
+            AddHint(page, Lang.T("電量降到門檻且沒有在充電時，從系統匣跳出一次通知；充電後再降下來才會再提醒",
+                "One tray notification when the level drops to the threshold while not charging; it alerts again only after charging"), 174);
+            AddDivider(page, 206, S(right - 18));
+
+            page.Controls.Add(new Label { Text = Lang.T("電量低的門檻", "Low-battery threshold"), AutoSize = true, Location = new Point(S(18), S(220)) });
+            AddHint(page, Lang.T("低於門檻且沒有在充電時才算電量低", "Low means at or below the threshold while not charging"), 244);
+            lowBatteryLevel.DropDownStyle = ComboBoxStyle.DropDownList;
+            foreach (int level in LowBatteryLevels) lowBatteryLevel.Items.Add(level + "%");
+            lowBatteryLevel.SelectedIndex = Array.IndexOf(LowBatteryLevels, 15);
+            lowBatteryLevel.Location = new Point(S(right - 120), S(224));
+            lowBatteryLevel.Width = S(120);
+            page.Controls.Add(lowBatteryLevel);
+            AddDivider(page, 278, S(right - 18));
+
+            page.Controls.Add(new Label { Text = Lang.T("電量低時暫停震動", "Pause haptics on low battery"), AutoSize = true, Location = new Point(S(18), S(292)) });
+            AddHint(page, Lang.T("同一個門檻；開關在「觸覺回饋」頁，「試震」不受影響", "Uses the same threshold; the switch is on the Haptics page, and Try still plays"), 316);
+            var hapticsLink = new LinkLabel
+            {
+                Text = Lang.T("在「觸覺回饋」頁設定 →", "Set it on the Haptics page →"),
+                AutoSize = true,
+                LinkColor = Theme.Accent,
+                ActiveLinkColor = Theme.AccentDown,
+                LinkBehavior = LinkBehavior.HoverUnderline,
+                UseMnemonic = false,
+                Font = new Font(Theme.UiFont, 9F),
+                Location = new Point(S(right - 200), S(296))
+            };
+            hapticsLink.LinkClicked += delegate { ShowPage(3); };
+            page.Controls.Add(hapticsLink);
+        }
+
+        // The battery page's level and state, from the last good reading.
+        private void UpdateBatteryPage(DeviceSnapshot snapshot)
+        {
+            if (chip.BatteryPercent < 0)
+            {
+                batteryLevel.Text = "—";
+                batteryDetail.Text = snapshot == null ? Lang.T("滑鼠沒有連線", "Mouse not connected") : Lang.T("尚未讀到電量", "No battery reading yet");
+                return;
+            }
+            batteryLevel.Text = chip.BatteryPercent + "%";
+            batteryLevel.ForeColor = BatteryLow ? Theme.Warning : Theme.Text;
+            var parts = new List<string>();
+            parts.Add(chip.Charging ? Lang.T("充電中", "Charging") : Lang.T("未充電", "Not charging"));
+            if (BatteryLow) parts.Add(Lang.T("電量低", "Low"));
+            if (HapticsPaused) parts.Add(Lang.T("震動已暫停", "Haptics paused"));
+            if (snapshot == null) parts.Add(Lang.T("滑鼠目前沒有連線，顯示上一次讀到的值", "mouse not connected; last reading shown"));
+            else parts.Add(snapshot.Transport == "BOLT" ? "Logi Bolt" : "Bluetooth");
+            batteryDetail.Text = String.Join(" · ", parts.ToArray());
+        }
+
+        // One haptic moment: name and description on the left; waveform, try and on/off on the right.
+        private void AddHapticRow(CardPanel page, CheckBox toggle, ComboBox wave, string title, string hint, int y, int defaultWave)
+        {
+            int right = 748;
+            if (y > 214) page.Controls.Add(new Panel { BackColor = Theme.Divider, Location = new Point(S(18), S(y - 8)), Size = new Size(S(right - 18), 1) });
+            page.Controls.Add(new Label { Text = title, AutoSize = true, UseMnemonic = false, Location = new Point(S(18), S(y + 2)) });
+            AddHint(page, hint, y + 26);
+            toggle.Text = "";
+            toggle.Checked = true;
+            toggle.Location = new Point(S(right - 46), S(y + 6));
+            toggle.Size = new Size(S(46), S(26));
+            page.Controls.Add(toggle);
+            Button tryButton = Theme.CreateButton(Lang.T("試震", "Try"), false);
+            tryButton.Size = new Size(S(72), S(28));
+            tryButton.Location = new Point(S(right - 46 - 12 - 72), S(y + 5));
+            tryButton.Click += delegate { PlayWave(wave); };
+            page.Controls.Add(tryButton);
+            hapticTryButtons[toggle] = tryButton;
+            wave.DropDownStyle = ComboBoxStyle.DropDownList;
+            wave.Items.AddRange(HapticWaveNames());
+            wave.SelectedIndex = defaultWave;
+            wave.Width = S(170);
+            wave.Location = new Point(S(right - 46 - 12 - 72 - 8 - 170), S(y + 6));
+            page.Controls.Add(wave);
+        }
+
+        private static object[] HapticWaveNames()
+        {
+            return new object[]
+            {
+                Lang.T("極輕", "Whisper"), Lang.T("輕微", "Subtle"), Lang.T("柔和", "Soft"),
+                Lang.T("柔和碰撞", "Soft bump"), Lang.T("清脆", "Crisp"), Lang.T("清脆碰撞", "Crisp bump")
+            };
+        }
+
+        private void AddWrappedHint(Control parent, string text, int x, int y, int width, int height)
+        {
+            parent.Controls.Add(new Label
+            {
+                Text = text,
+                AutoSize = false,
+                UseMnemonic = false,
+                ForeColor = Theme.Muted,
+                Font = new Font(Theme.UiFont, 8.5F),
+                Location = new Point(S(x), S(y)),
+                Size = new Size(S(width), S(height))
+            });
+        }
+
         private void ShowPage(int index)
         {
             if (index == 2) ShowDevicePage();
+            if (index == 3) ReadHapticStrength();
+            if (index == 5) RefreshBattery();
             for (int i = 0; i < pages.Count; i++)
             {
                 pages[i].Visible = i == index;
@@ -2677,6 +3022,13 @@ namespace MXMasterWin
                     SaveSettings();
                     RefreshBattery();
                 });
+                deviceEditor.NormalDpi = delegate { return precisionActive ? precisionNormalDpi : 0; };
+                // A speed applied there is the new normal one, so precision mode is over.
+                deviceEditor.DpiApplied += delegate
+                {
+                    precisionActive = false;
+                    precisionHeldBy = null;
+                };
                 deviceEditor.Embed(devicePage, new Point(S(12), S(10)));
             }
             deviceEditor.Reload();
@@ -2763,10 +3115,11 @@ namespace MXMasterWin
             parent.Controls.Add(readout);
         }
 
-        // Percent settings to multipliers. 50% is the default size; the scales match the macOS version.
+        // Percent settings to multipliers. 50% is the default size; the bubble scale matches the macOS version.
+        // 2026-10-17: the overall size base was 0.78; the user's 44% (0.78 × 0.94) became the new 50%.
         private void ApplyRingAppearance()
         {
-            float size = 0.78F * (0.5F + ringSize.Value / 100F);
+            float size = 0.7332F * (0.5F + ringSize.Value / 100F);
             float bubble = bubbleSize.Value <= 50
                 ? 0.6F + 0.2F * (bubbleSize.Value / 50F)
                 : 0.8F + 0.225F * ((bubbleSize.Value - 50) / 50F);
@@ -2775,15 +3128,342 @@ namespace MXMasterWin
             UpdateRingPreview();
         }
 
-        private void UpdateHapticControls()
+        // A haptic moment: its switch enables the waveform list and try button; picking a waveform
+        // plays it once so it can be felt straight away.
+        private void WireHaptic(CheckBox toggle, ComboBox wave)
         {
-            ringHapticWave.Enabled = hapticTry.Enabled = ringHaptic.Checked;
+            toggle.CheckedChanged += delegate
+            {
+                UpdateHapticControls();
+                SaveSettings();
+            };
+            wave.SelectedIndexChanged += delegate
+            {
+                PlayWave(wave);
+                SaveSettings();
+            };
         }
 
-        private void PlayRingHaptic()
+        private void UpdateHapticControls()
+        {
+            foreach (var pair in hapticTryButtons) pair.Value.Enabled = pair.Key.Checked;
+            ringHapticWave.Enabled = ringHaptic.Checked;
+            gestureHapticWave.Enabled = gestureHaptic.Checked;
+            flowHapticWave.Enabled = flowHaptic.Checked;
+            modeHapticWave.Enabled = modeHaptic.Checked;
+        }
+
+        private int WaveId(ComboBox wave)
+        {
+            return HapticWaves[Math.Max(0, Math.Min(HapticWaves.Length - 1, wave.SelectedIndex))];
+        }
+
+        private void PlayWave(ComboBox wave)
         {
             if (hidpp == null) return;
-            hidpp.PlayHaptic((byte)HapticWaves[Math.Max(0, ringHapticWave.SelectedIndex)]);
+            hidpp.PlayHaptic((byte)WaveId(wave));
+        }
+
+        // Automatic taps; the Try buttons and the waveform menus call PlayWave directly and still play.
+        private void PlayHaptic(CheckBox toggle, ComboBox wave)
+        {
+            if (toggle.Checked && !HapticsPaused) PlayWave(wave);
+        }
+
+        private int LowBatteryThreshold
+        {
+            get { return LowBatteryLevels[Math.Max(0, Math.Min(LowBatteryLevels.Length - 1, lowBatteryLevel.SelectedIndex))]; }
+        }
+
+        // Below the threshold and not charging (the last level the mouse reported).
+        private bool BatteryLow
+        {
+            get { return chip.BatteryPercent >= 0 && !chip.Charging && chip.BatteryPercent <= LowBatteryThreshold; }
+        }
+
+        private bool HapticsPaused
+        {
+            get { return lowBatteryHapticPause.Checked && BatteryLow; }
+        }
+
+        private void UpdateHapticPauseNote()
+        {
+            if (HapticsPaused)
+            {
+                hapticPauseNote.ForeColor = Theme.Warning;
+                hapticPauseNote.Text = String.Format(Lang.T("電量 {0}%，震動已暫停；充電後恢復，「試震」仍會震",
+                    "Battery {0}%: taps paused until it charges; Try still plays"), chip.BatteryPercent);
+            }
+            else
+            {
+                hapticPauseNote.ForeColor = Theme.Muted;
+                hapticPauseNote.Text = String.Format(Lang.T("電量 {0}% 以下且沒有充電時，下方的震動都不播放",
+                    "Below {0}% and not charging, none of the taps below play"), LowBatteryThreshold);
+            }
+        }
+
+        // Called whenever a battery level arrives. One notification per discharge: it is re-armed
+        // by charging or by climbing 3% above the threshold.
+        private void BatteryChanged()
+        {
+            UpdateHapticPauseNote();
+            int percent = chip.BatteryPercent;
+            if (percent < 0) return;
+            if (chip.Charging || percent > LowBatteryThreshold + 3)
+            {
+                lowBatteryNotified = false;
+                return;
+            }
+            if (percent > LowBatteryThreshold || lowBatteryNotified) return;
+            lowBatteryNotified = true;
+            if (liveLog.Checked)
+                AddLog(DateTime.Now.ToString("HH:mm:ss.fff") + " Battery low: " + percent + "% (threshold " + LowBatteryThreshold + "%)" + (HapticsPaused ? "; haptics paused" : ""));
+            if (!lowBatteryAlert.Checked) return;
+            try
+            {
+                tray.ShowBalloonTip(8000, Lang.T("MX Master 4 電量低", "MX Master 4 battery low"),
+                    String.Format(Lang.T("剩 {0}%，請盡快充電。", "{0}% left. Charge it soon."), percent)
+                    + (HapticsPaused ? Lang.T("充電前震動會暫停。", " Haptics are paused until it charges.") : ""), ToolTipIcon.Warning);
+            }
+            catch { }
+        }
+
+        private void BatterySettingsChanged()
+        {
+            if (chip.BatteryPercent > LowBatteryThreshold + 3) lowBatteryNotified = false;
+            BatteryChanged();
+            UpdateBatteryPage(lastSnapshot);
+        }
+
+        private static void SelectWave(ComboBox wave, string text, int fallback)
+        {
+            // Stored as the waveform id; anything not in the menu falls back to the default.
+            int id;
+            int found = int.TryParse(text.Trim(), out id) ? Array.IndexOf(HapticWaves, id) : -1;
+            wave.SelectedIndex = found >= 0 ? found : fallback;
+        }
+
+        // ---- Haptic strength (Haptics page) ----
+
+        private void ReadHapticStrength()
+        {
+            if (hidpp == null) return;
+            ThreadPool.QueueUserWorkItem(delegate
+            {
+                DeviceSnapshot snapshot = null;
+                try { snapshot = hidpp.ReadDevice(); }
+                catch { }
+                try
+                {
+                    if (!IsHandleCreated || IsDisposed) return;
+                    BeginInvoke(new Action(delegate { ShowHapticStrength(snapshot); }));
+                }
+                catch { }
+            });
+        }
+
+        private void ShowHapticStrength(DeviceSnapshot snapshot)
+        {
+            bool present = snapshot != null && snapshot.HapticPresent;
+            hapticStrength.Enabled = hapticStrengthApply.Enabled = present;
+            if (present) hapticStrength.Value = Math.Max(0, Math.Min(100, snapshot.HapticLevel));
+            else hapticStrengthValue.Text = "—";
+            if (snapshot == null) status.Text = Lang.T("尚未連上滑鼠，無法讀取觸覺強度；下方的設定仍可先調整", "The mouse is not connected, so the strength cannot be read; the settings below can still be changed");
+        }
+
+        private void ApplyHapticStrength()
+        {
+            int level = (int)hapticStrength.Value;
+            hapticStrengthApply.Enabled = false;
+            status.Text = Lang.T("正在套用觸覺強度…", "Applying haptic strength…");
+            ThreadPool.QueueUserWorkItem(delegate
+            {
+                bool ok = false;
+                try { ok = hidpp.SetHaptic(level); }
+                catch { }
+                DeviceSnapshot snapshot = null;
+                try { snapshot = hidpp.ReadDevice(); }
+                catch { }
+                try
+                {
+                    if (!IsHandleCreated || IsDisposed) return;
+                    BeginInvoke(new Action(delegate
+                    {
+                        LogDeviceLines(new[] { "write haptic " + level + " verified=" + ok });
+                        if (ok)
+                        {
+                            deviceSettings.Haptic = level;
+                            SaveSettings();
+                        }
+                        ShowHapticStrength(snapshot);
+                        status.Text = ok
+                            ? Lang.T("觸覺強度已套用並儲存", "Haptic strength applied and saved")
+                            : Lang.T("觸覺強度套用失敗：滑鼠沒有確認新數值", "Haptic strength failed: the mouse did not confirm the new value");
+                    }));
+                }
+                catch { }
+            });
+        }
+
+        // ---- Precision mode and wheel mode ----
+
+        // Run from a menu action (ring, gesture, thumb wheel, or a button's plain click).
+        private bool RunMouseAction(MappedAction action)
+        {
+            if (action == MappedAction.WheelModeToggle) return ToggleWheelMode();
+            if (action == MappedAction.HostChannel1) return SwitchToChannel(0);
+            if (action == MappedAction.HostChannel2) return SwitchToChannel(1);
+            if (action == MappedAction.HostChannel3) return SwitchToChannel(2);
+            precisionHeldBy = null;
+            return SetPrecision(!precisionActive, false);
+        }
+
+        private void HoldPrecision(MouseInput input, bool down)
+        {
+            if (down)
+            {
+                if (precisionHeldBy.HasValue) return;
+                if (SetPrecision(true, false)) precisionHeldBy = input;
+            }
+            else if (precisionHeldBy == input)
+            {
+                precisionHeldBy = null;
+                SetPrecision(false, false);
+            }
+        }
+
+        // The state changes at once; the speed is written in the background, and only the latest
+        // request is written, so a quick press and release always ends at the normal speed.
+        private bool SetPrecision(bool on, bool quiet)
+        {
+            if (on == precisionActive) return true;
+            if (on)
+            {
+                DeviceSnapshot s = lastSnapshot;
+                if (hidpp == null || s == null || s.DpiFeature != 0x2201 || s.Dpi <= 0) return false;
+                int normal = deviceSettings.Dpi > 0 ? deviceSettings.Dpi : s.Dpi;
+                if (deviceSettings.Dpi <= 0)
+                {
+                    // Kept in the INI so a crash in precision mode is undone at the next start or reconnect.
+                    deviceSettings.Dpi = normal;
+                    SaveSettings();
+                }
+                int low = (int)precisionDpi.Value;
+                if (s.DpiMax > s.DpiMin) low = Math.Max(s.DpiMin, Math.Min(s.DpiMax, low));
+                precisionNormalDpi = normal;
+                precisionActive = true;
+                QueueDpi(low, "Precision on");
+                if (!quiet)
+                {
+                    ShowMode(Lang.T("精準模式", "Precision mode"), low + " DPI");
+                    PlayHaptic(modeHaptic, modeHapticWave);
+                }
+            }
+            else
+            {
+                precisionActive = false;
+                precisionHeldBy = null;
+                QueueDpi(precisionNormalDpi, "Precision off");
+                if (!quiet)
+                {
+                    ShowMode(Lang.T("指標速度已恢復", "Pointer speed restored"), precisionNormalDpi + " DPI");
+                    PlayHaptic(modeHaptic, modeHapticWave);
+                }
+            }
+            return true;
+        }
+
+        private void QueueDpi(int dpi, string reason)
+        {
+            int seq = Interlocked.Increment(ref precisionSeq);
+            ThreadPool.QueueUserWorkItem(delegate
+            {
+                bool ok = false;
+                lock (precisionLock)
+                {
+                    if (seq != Thread.VolatileRead(ref precisionSeq)) return;
+                    try { ok = hidpp.SetDpi(dpi); }
+                    catch { }
+                }
+                try
+                {
+                    if (liveLog.Checked && IsHandleCreated && !IsDisposed)
+                        BeginInvoke(new Action(delegate { AddLog(DateTime.Now.ToString("HH:mm:ss.fff") + " " + reason + " DPI " + dpi + " verified=" + ok); }));
+                }
+                catch { }
+            });
+        }
+
+        private bool ToggleWheelMode()
+        {
+            if (hidpp == null) return false;
+            ThreadPool.QueueUserWorkItem(delegate
+            {
+                int mode = -1, threshold = -1;
+                bool ok = false;
+                try { ok = hidpp.ToggleWheelMode(out mode, out threshold); }
+                catch { }
+                try
+                {
+                    if (!IsHandleCreated || IsDisposed) return;
+                    BeginInvoke(new Action(delegate
+                    {
+                        LogDeviceLines(new[] { "toggle wheel mode -> " + mode + "/" + threshold + " verified=" + ok });
+                        if (!ok) return;
+                        // Saved like a choice on the pointer page, so a reconnect keeps the new mode.
+                        deviceSettings.WheelMode = mode;
+                        deviceSettings.SmartShiftThreshold = threshold;
+                        SaveSettings();
+                        if (mode == 1) ShowMode(Lang.T("自由滾動", "Free spin"), Lang.T("滾輪無阻力", "No resistance"));
+                        else ShowMode(Lang.T("段落滾動", "Ratchet"), Lang.T("一格一格", "Step by step"));
+                        PlayHaptic(modeHaptic, modeHapticWave);
+                    }));
+                }
+                catch { }
+            });
+            return true;
+        }
+
+        private void ShowMode(string title, string detail)
+        {
+            if (modeHud.Checked) modeOverlay.ShowMode(title, detail);
+        }
+
+        // The trigger list on the pointer page mirrors which button is set to "precision mode (hold)".
+        private void RefreshPrecisionTrigger()
+        {
+            int index = 0;
+            for (int i = 0; i < PrecisionInputs.Length; i++)
+                if (GetMapping(PrecisionInputs[i]).Action == MappedAction.PrecisionHold) { index = i + 1; break; }
+            loadingPrecision = true;
+            precisionTrigger.SelectedIndex = index;
+            loadingPrecision = false;
+        }
+
+        // One button at a time: the one that had it goes back to its default action.
+        private void ApplyPrecisionTrigger()
+        {
+            MouseInput? chosen = precisionTrigger.SelectedIndex > 0 ? PrecisionInputs[precisionTrigger.SelectedIndex - 1] : (MouseInput?)null;
+            foreach (MouseInput input in PrecisionInputs)
+            {
+                ActionPicker picker;
+                if (!selectors.TryGetValue(input, out picker)) continue;
+                if (chosen == input) picker.Binding = ActionBinding.Of(MappedAction.PrecisionHold);
+                else if (picker.Binding.Action == MappedAction.PrecisionHold) picker.Binding = DefaultMapping(input);
+            }
+            SaveSettings();
+        }
+
+        private static ActionBinding DefaultMapping(MouseInput input)
+        {
+            switch (input)
+            {
+                case MouseInput.XButton1: return ActionBinding.Of(MappedAction.BrowserBack);
+                case MouseInput.XButton2: return ActionBinding.Of(MappedAction.BrowserForward);
+                case MouseInput.GestureButton: return ActionBinding.Of(MappedAction.AltTab);
+                case MouseInput.ActionRingButton: return ActionBinding.Of(MappedAction.TaskView);
+                default: return ActionBinding.Of(MappedAction.PassThrough);
+            }
         }
 
         private bool applyingStartup;
@@ -2904,14 +3584,8 @@ namespace MXMasterWin
 
         private void LoadSettings()
         {
-            mappings[MouseInput.Middle] = ActionBinding.Of(MappedAction.PassThrough);
-            mappings[MouseInput.XButton1] = ActionBinding.Of(MappedAction.BrowserBack);
-            mappings[MouseInput.XButton2] = ActionBinding.Of(MappedAction.BrowserForward);
-            mappings[MouseInput.WheelLeft] = ActionBinding.Of(MappedAction.PassThrough);
-            mappings[MouseInput.WheelRight] = ActionBinding.Of(MappedAction.PassThrough);
-            mappings[MouseInput.GestureButton] = ActionBinding.Of(MappedAction.AltTab);
-            mappings[MouseInput.ActionRingButton] = ActionBinding.Of(MappedAction.TaskView);
-            mappings[MouseInput.WheelModeButton] = ActionBinding.Of(MappedAction.PassThrough);
+            foreach (MouseInput input in Enum.GetValues(typeof(MouseInput)))
+                mappings[input] = DefaultMapping(input);
 
             if (File.Exists(configPath))
             {
@@ -2949,18 +3623,40 @@ namespace MXMasterWin
                         ringColor.SelectedIndex = parts[1].Trim().Equals("Light", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
                         continue;
                     }
-                    if (key.Equals("RingHaptic", StringComparison.OrdinalIgnoreCase))
+                    CheckBox hapticSwitch = key.Equals("RingHaptic", StringComparison.OrdinalIgnoreCase) ? ringHaptic
+                        : key.Equals("GestureHaptic", StringComparison.OrdinalIgnoreCase) ? gestureHaptic
+                        : key.Equals("FlowHaptic", StringComparison.OrdinalIgnoreCase) ? flowHaptic
+                        : key.Equals("ModeHaptic", StringComparison.OrdinalIgnoreCase) ? modeHaptic
+                        : key.Equals("ModeHud", StringComparison.OrdinalIgnoreCase) ? modeHud
+                        : key.Equals("LowBatteryAlert", StringComparison.OrdinalIgnoreCase) ? lowBatteryAlert
+                        : key.Equals("LowBatteryHapticPause", StringComparison.OrdinalIgnoreCase) ? lowBatteryHapticPause : null;
+                    if (hapticSwitch != null)
                     {
                         bool on;
-                        if (bool.TryParse(parts[1].Trim(), out on)) ringHaptic.Checked = on;
+                        if (bool.TryParse(parts[1].Trim(), out on)) hapticSwitch.Checked = on;
                         continue;
                     }
-                    if (key.Equals("RingHapticWave", StringComparison.OrdinalIgnoreCase))
+                    if (key.Equals("RingHapticWave", StringComparison.OrdinalIgnoreCase)) { SelectWave(ringHapticWave, parts[1], DefaultHapticWave); continue; }
+                    if (key.Equals("GestureHapticWave", StringComparison.OrdinalIgnoreCase)) { SelectWave(gestureHapticWave, parts[1], 3); continue; }
+                    if (key.Equals("FlowHapticWave", StringComparison.OrdinalIgnoreCase)) { SelectWave(flowHapticWave, parts[1], 5); continue; }
+                    if (key.Equals("ModeHapticWave", StringComparison.OrdinalIgnoreCase)) { SelectWave(modeHapticWave, parts[1], 4); continue; }
+                    if (key.Equals("LowBatteryLevel", StringComparison.OrdinalIgnoreCase))
                     {
-                        // Stored as the waveform id; anything not in the menu falls back to the default.
-                        int wave;
-                        int found = int.TryParse(parts[1].Trim(), out wave) ? Array.IndexOf(HapticWaves, wave) : -1;
-                        ringHapticWave.SelectedIndex = found >= 0 ? found : DefaultHapticWave;
+                        int level;
+                        int found = int.TryParse(parts[1].Trim(), out level) ? Array.IndexOf(LowBatteryLevels, level) : -1;
+                        if (found >= 0) lowBatteryLevel.SelectedIndex = found;
+                        continue;
+                    }
+                    if (key.Equals("GestureSensitivity", StringComparison.OrdinalIgnoreCase))
+                    {
+                        int value;
+                        if (int.TryParse(parts[1].Trim(), out value)) gestureSensitivity = Math.Max(0, Math.Min(100, value));
+                        continue;
+                    }
+                    if (key.Equals("PrecisionDpi", StringComparison.OrdinalIgnoreCase))
+                    {
+                        int dpi;
+                        if (int.TryParse(parts[1].Trim(), out dpi)) precisionDpi.Value = dpi;
                         continue;
                     }
                     if (key.Equals("RingSize", StringComparison.OrdinalIgnoreCase) || key.Equals("BubbleSize", StringComparison.OrdinalIgnoreCase) ||
@@ -3047,6 +3743,8 @@ namespace MXMasterWin
             UpdateGestureNames();
             ApplyRingAppearance();
             UpdateHapticControls();
+            UpdateHapticPauseNote();
+            RefreshPrecisionTrigger();
             RefreshHostUi();
         }
 
@@ -3073,7 +3771,19 @@ namespace MXMasterWin
                 lines.Add("RingOpacity=" + ringOpacity.Value);
                 lines.Add("RingColor=" + (ringColor.SelectedIndex == 1 ? "Light" : "Dark"));
                 lines.Add("RingHaptic=" + ringHaptic.Checked);
-                lines.Add("RingHapticWave=" + HapticWaves[Math.Max(0, ringHapticWave.SelectedIndex)]);
+                lines.Add("RingHapticWave=" + WaveId(ringHapticWave));
+                lines.Add("GestureHaptic=" + gestureHaptic.Checked);
+                lines.Add("GestureHapticWave=" + WaveId(gestureHapticWave));
+                lines.Add("FlowHaptic=" + flowHaptic.Checked);
+                lines.Add("FlowHapticWave=" + WaveId(flowHapticWave));
+                lines.Add("ModeHaptic=" + modeHaptic.Checked);
+                lines.Add("ModeHapticWave=" + WaveId(modeHapticWave));
+                lines.Add("PrecisionDpi=" + (int)precisionDpi.Value);
+                lines.Add("ModeHud=" + modeHud.Checked);
+                lines.Add("GestureSensitivity=" + gestureSensitivity);
+                lines.Add("LowBatteryAlert=" + lowBatteryAlert.Checked);
+                lines.Add("LowBatteryLevel=" + LowBatteryThreshold);
+                lines.Add("LowBatteryHapticPause=" + lowBatteryHapticPause.Checked);
                 for (int i = 0; i < GestureKeys.Length; i++)
                     lines.Add(GestureKeys[i] + "=" + gestureBindings[i]);
                 lines.Add("StartMinimized=" + startMinimized.Checked);
@@ -3154,22 +3864,28 @@ namespace MXMasterWin
                 int ax = Math.Abs(dx);
                 int ay = Math.Abs(dy);
                 int major = Math.Max(ax, ay);
-                if (major >= 40) gestureMoved = true;
+                // Scaled by the gesture sensitivity; 50% keeps the original 40 px / 65 px.
+                double factor = Math.Pow(2, (50 - gestureSensitivity) / 50.0);
+                int moveDistance = (int)Math.Round(40 * factor), lockDistance = (int)Math.Round(65 * factor);
+                if (major >= moveDistance) gestureMoved = true;
 
                 // Do not let a late wobble change an already selected action. Before
                 // locking, require one axis to be at least 35% stronger than the other.
                 if (gestureDirection.Length == 0)
                 {
                     string next = "";
-                    if (major >= 40)
+                    if (major >= moveDistance)
                     {
                         if (ax * 100 >= ay * 135) next = dx < 0 ? "左" : "右";
                         else if (ay * 100 >= ax * 135) next = dy < 0 ? "上" : "下";
                         else next = "斜";
                     }
 
-                    if (major >= 65 && next != "" && next != "斜")
+                    if (major >= lockDistance && next != "" && next != "斜")
+                    {
                         gestureDirection = next;
+                        PlayHaptic(gestureHaptic, gestureHapticWave);
+                    }
 
                     string display = gestureDirection.Length > 0 ? gestureDirection : next;
                     if (display != gestureCandidate)
@@ -3200,6 +3916,11 @@ namespace MXMasterWin
             if (button) heldInputs.Add(input);
             ActionBinding mapped = GetMapping(input);
             if (mapped.IsPassThrough) return false;
+            if (button && mapped.Action == MappedAction.PrecisionHold)
+            {
+                BeginInvoke(new Action(delegate { HoldPrecision(input, true); }));
+                return true;
+            }
             if (button && IsEdgeKey(input))
             {
                 // Held to switch computers: its own action runs on release, unless a switch happened.
@@ -3215,6 +3936,8 @@ namespace MXMasterWin
         private bool ButtonReleased(MouseInput input)
         {
             heldInputs.Remove(input);
+            if (precisionHeldBy == input || GetMapping(input).Action == MappedAction.PrecisionHold)
+                BeginInvoke(new Action(delegate { HoldPrecision(input, false); }));
             if (deferredPending && deferredInput == input)
             {
                 deferredPending = false;
@@ -3273,6 +3996,12 @@ namespace MXMasterWin
                 }
                 else if (pressed) BeginActionRing(Cursor.Position);
                 else if (actionRingActive) FinishActionRing();
+                return;
+            }
+
+            if (GetMapping(input).Action == MappedAction.PrecisionHold)
+            {
+                HoldPrecision(input, pressed);
                 return;
             }
 
@@ -3394,6 +4123,12 @@ namespace MXMasterWin
                 {
                     vendorState.Clear();
                     rawInput.ResetPressed();
+                    // After a ring click that switched computers, its release never arrived here.
+                    swallowLeftUp = false;
+                    swallowRightUp = false;
+                    // The saved speed is written back on (re)connect, which ends precision mode.
+                    precisionActive = false;
+                    precisionHeldBy = null;
                     MouseArrived();
                 }));
             }
@@ -3565,6 +4300,22 @@ namespace MXMasterWin
                 SwitchHost(target, "edge " + edge);
         }
 
+        // "Switch to channel N" from a button, gesture or the ring. Nothing happens on the current
+        // channel or on one the mouse reports as unpaired.
+        private bool SwitchToChannel(int channel)
+        {
+            HostEntry entry = hosts.Find(delegate(HostEntry h) { return h.Index == channel; });
+            string skip = channel == currentHost ? "already on this channel" : entry != null && !entry.Paired ? "channel not paired" : null;
+            if (skip != null)
+            {
+                if (liveLog.Checked) AddLog(DateTime.Now.ToString("HH:mm:ss.fff") + " Switch host -> " + channel + " skipped (" + skip + ")");
+                return false;
+            }
+            // Leave the ring's click (and the hook callback) before the mouse goes away.
+            BeginInvoke(new Action(delegate { SwitchHost(channel, "action"); }));
+            return true;
+        }
+
         private void SwitchHost(int host, string reason)
         {
             edgeCooldownUntil = unchecked(Environment.TickCount + 3000);
@@ -3580,12 +4331,26 @@ namespace MXMasterWin
                 gestureActive = false;
                 overlay.Hide();
             }
+            int normalDpi = precisionActive ? precisionNormalDpi : -1;
+            precisionActive = false;
+            precisionHeldBy = null;
+            int haptic = flowHaptic.Checked && !HapticsPaused ? WaveId(flowHapticWave) : -1;
             if (liveLog.Checked)
                 AddLog(DateTime.Now.ToString("HH:mm:ss.fff") + " Switch host -> " + host + " (" + reason + ")");
             ThreadPool.QueueUserWorkItem(delegate
             {
                 bool sent = false;
-                try { sent = hidpp.ChangeHost(host); }
+                // Leaving in precision mode would keep the slow speed on the other computer.
+                if (normalDpi > 0)
+                {
+                    Interlocked.Increment(ref precisionSeq);
+                    lock (precisionLock)
+                    {
+                        try { hidpp.SetDpi(normalDpi); }
+                        catch { }
+                    }
+                }
+                try { sent = hidpp.ChangeHost(host, haptic); }
                 catch { }
                 try
                 {
@@ -3658,6 +4423,7 @@ namespace MXMasterWin
         {
             MouseHook.Enabled = !MouseHook.Enabled;
             if (actionRingActive) CancelActionRing();
+            if (!MouseHook.Enabled && precisionActive) SetPrecision(false, true);
             edgePushing = false;
             deferredPending = false;
             heldInputs.Clear();
@@ -3704,10 +4470,21 @@ namespace MXMasterWin
                 appearanceSave.Stop();
                 SaveSettings();
             }
+            if (precisionActive)
+            {
+                // Put the normal speed back before the HID++ channel goes away.
+                Interlocked.Increment(ref precisionSeq);
+                lock (precisionLock)
+                {
+                    try { hidpp.SetDpi(precisionNormalDpi); }
+                    catch { }
+                }
+            }
             hidpp.Dispose();
             rawInput.Dispose();
             MouseHook.Uninstall();
             overlay.Close();
+            modeOverlay.Close();
             actionRing.Close();
             base.OnFormClosing(e);
         }
@@ -3752,6 +4529,92 @@ namespace MXMasterWin
             else if (direction == "下") label.Text = "↓  " + Names[2];
             else if (direction == "斜") label.Text = Lang.T("方向不明\r\n請往單一方向直線移動", "Unclear direction\r\nMove in one straight line");
             else label.Text = Lang.T("按住並往 上／下／左／右 移動", "Hold and move up, down, left or right");
+        }
+    }
+
+    // Shows the new state for a moment at the bottom of the screen under the pointer when precision
+    // mode or the wheel mode changes (like the system volume hint). Never takes focus or clicks.
+    internal sealed class ModeOverlay : Form
+    {
+        private readonly System.Windows.Forms.Timer hideTimer = new System.Windows.Forms.Timer();
+        private readonly float scale = Theme.GetScale();
+        private readonly Font titleFont = new Font(Theme.UiFont, 11F, FontStyle.Bold);
+        private readonly Font detailFont = new Font(Theme.UiFont, 9F);
+        private string title = "";
+        private string detail = "";
+
+        public ModeOverlay()
+        {
+            FormBorderStyle = FormBorderStyle.None;
+            ShowInTaskbar = false;
+            TopMost = true;
+            StartPosition = FormStartPosition.Manual;
+            BackColor = Color.FromArgb(35, 37, 44);
+            Opacity = 0.94;
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
+            hideTimer.Interval = 1400;
+            hideTimer.Tick += delegate
+            {
+                hideTimer.Stop();
+                Hide();
+            };
+        }
+
+        protected override bool ShowWithoutActivation { get { return true; } }
+
+        protected override CreateParams CreateParams
+        {
+            get
+            {
+                CreateParams cp = base.CreateParams;
+                cp.ExStyle |= 0x08000000 | 0x00000080 | 0x00000020;   // WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TRANSPARENT
+                return cp;
+            }
+        }
+
+        private int S(float value) { return (int)Math.Round(value * scale); }
+
+        public void ShowMode(string titleText, string detailText)
+        {
+            title = titleText ?? "";
+            detail = detailText ?? "";
+            Size titleSize = TextRenderer.MeasureText(title, titleFont, Size.Empty, TextFormatFlags.NoPrefix);
+            Size detailSize = TextRenderer.MeasureText(detail, detailFont, Size.Empty, TextFormatFlags.NoPrefix);
+            int width = Math.Max(S(190), Math.Max(titleSize.Width, detailSize.Width) + S(64));
+            int height = S(62);
+            Rectangle area = Screen.FromPoint(Cursor.Position).WorkingArea;
+            Bounds = new Rectangle(area.Left + (area.Width - width) / 2, area.Bottom - height - S(88), width, height);
+            using (GraphicsPath path = Theme.RoundedRectangle(new RectangleF(0, 0, width, height), S(16)))
+                Region = new Region(path);
+            Invalidate();
+            if (!Visible) Show();
+            hideTimer.Stop();
+            hideTimer.Start();
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            // Accent dot on the left, then the state and a detail line.
+            float dot = S(12);
+            using (var accent = new SolidBrush(Theme.Accent))
+                g.FillEllipse(accent, S(22), (Height - dot) / 2F, dot, dot);
+            int left = S(46);
+            TextRenderer.DrawText(g, title, titleFont, new Point(left, S(detail.Length > 0 ? 10 : 19)), Color.White, BackColor, TextFormatFlags.NoPrefix);
+            if (detail.Length > 0)
+                TextRenderer.DrawText(g, detail, detailFont, new Point(left, S(34)), Color.FromArgb(176, 185, 204), BackColor, TextFormatFlags.NoPrefix);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                hideTimer.Dispose();
+                titleFont.Dispose();
+                detailFont.Dispose();
+            }
+            base.Dispose(disposing);
         }
     }
 
@@ -3939,6 +4802,12 @@ namespace MXMasterWin
                 case MappedAction.InsertDate: return "";
                 case MappedAction.InsertTime: return "";
                 case MappedAction.OpenSettings: return "";
+                case MappedAction.PrecisionHold:
+                case MappedAction.PrecisionToggle: return "\uE7C9";     // TouchPointer
+                case MappedAction.WheelModeToggle: return "\uE962";     // Mouse
+                case MappedAction.HostChannel1:
+                case MappedAction.HostChannel2:
+                case MappedAction.HostChannel3: return "\uE7F4";       // the MX Flow navigation icon
             }
             return "";
         }
@@ -4343,6 +5212,9 @@ namespace MXMasterWin
 
         // Set by MainForm: shows this app's settings window (posted to the UI thread).
         public static Action OpenSettings;
+        // Set by MainForm: precision mode and the wheel mode. Run from the ring, a gesture or the thumb
+        // wheel there is no "holding", so "precision mode (hold)" toggles there.
+        public static Func<MappedAction, bool> MouseAction;
 
         public static bool Run(ActionBinding binding)
         {
@@ -4422,6 +5294,13 @@ namespace MXMasterWin
                     if (OpenSettings == null) return false;
                     OpenSettings();
                     return true;
+                case MappedAction.PrecisionHold:
+                case MappedAction.PrecisionToggle:
+                case MappedAction.WheelModeToggle:
+                case MappedAction.HostChannel1:
+                case MappedAction.HostChannel2:
+                case MappedAction.HostChannel3:
+                    return MouseAction != null && MouseAction(action);
                 case MappedAction.BrowserBack: return Tap(0xA6);
                 case MappedAction.BrowserForward: return Tap(0xA7);
                 case MappedAction.Copy: return Chord(VK_CONTROL, 0x43);
@@ -5247,6 +6126,30 @@ namespace MXMasterWin
             }
         }
 
+        // Swaps ratchet and free spin, writing the SmartShift threshold back as read. On success
+        // mode and threshold hold the new values.
+        public bool ToggleWheelMode(out int mode, out int threshold)
+        {
+            mode = threshold = -1;
+            lock (sync)
+            {
+                if (disposed || transport == null) return false;
+                try
+                {
+                    bool enhanced = FindFeature(0x2111) >= 0;
+                    byte[] reply = Call(enhanced ? 0x2111 : 0x2110, enhanced ? 1 : 0);
+                    if (reply == null) return false;
+                    int next = reply[4] == 1 ? 2 : 1;
+                    int keep = reply[5];
+                    if (!SetSmartShift(next, keep)) return false;
+                    mode = next;
+                    threshold = keep;
+                    return true;
+                }
+                catch { return false; }
+            }
+        }
+
         // Only the invert bit changes; the target and resolution bits are written back as read.
         public bool SetWheelInvert(bool inverted)
         {
@@ -5373,7 +6276,8 @@ namespace MXMasterWin
         // Moves the mouse to another channel. It leaves this computer at once and sometimes has no
         // time to answer, so a request that went out counts as done. The channel is dropped here and
         // found again by Recheck() when the mouse shows activity on this computer.
-        public bool ChangeHost(int host)
+        // hapticWave >= 0 plays that waveform first, on the same lock, so the tap lands before the mouse leaves.
+        public bool ChangeHost(int host, int hapticWave)
         {
             lock (sync)
             {
@@ -5384,6 +6288,8 @@ namespace MXMasterWin
                     if (index < 0) return false;
                     byte[] info = transport.Request(deviceIndex, index, 0, SoftwareId, new byte[0], 900);
                     if (info == null || info.Length < 6 || host < 0 || host >= info[4] || host == info[5]) return false;
+                    int haptic = hapticWave >= 0 ? FindFeature(0x19B0) : -1;
+                    if (haptic >= 0) transport.Request(deviceIndex, haptic, 4, SoftwareId, new[] { (byte)hapticWave }, 250);
                     Report("change host " + info[5] + " -> " + host);
                     try { transport.Request(deviceIndex, index, 1, SoftwareId, new byte[] { (byte)host }, 300); }
                     catch (Exception ex) { Report("change host: " + ex.Message); }
@@ -5742,17 +6648,21 @@ namespace MXMasterWin
         private readonly Label firmware = new Label();
         private readonly SliderBar dpi = new SliderBar();
         private readonly Label dpiValue = new Label();
-        private readonly Label hapticValue = new Label();
         private readonly Label dpiRange = new Label();
         private readonly ComboBox wheelMode = new ComboBox();
         private readonly NumericUpDown threshold = new NumericUpDown();
         private readonly CheckBox neverDisengage = new CheckBox();
-        private readonly SliderBar haptic = new SliderBar();
         private readonly Label result = new Label();
         private readonly ComboBox wheelDirection = new ComboBox();
-        private readonly Button dpiApply, shiftApply, directionApply, hapticApply, reload, close;
+        private readonly Button dpiApply, shiftApply, directionApply, reload, close;
         private readonly float scale;
         private DeviceSnapshot current;
+
+        // Set by MainForm. While precision mode is on the mouse reports the slow speed; this gives the
+        // normal one to show instead (0 = use what the mouse reports).
+        public Func<int> NormalDpi;
+        // Raised after a new speed was applied here; it becomes the normal speed.
+        public event Action DpiApplied;
 
         public DeviceDialog(HidppDiversionManager manager, Action<IEnumerable<string>> logAction,
             DeviceSettings savedSettings, Action saveAction)
@@ -5762,7 +6672,7 @@ namespace MXMasterWin
             saved = savedSettings;
             save = saveAction;
             scale = Theme.GetScale();
-            DialogStyle.Apply(this, Lang.T("裝置設定", "Device settings"), 480, 500, scale);
+            DialogStyle.Apply(this, Lang.T("裝置設定", "Device settings"), 480, 424, scale);
 
             AddInfoRow(Lang.T("連線", "Connection"), connection, 12);
             AddInfoRow(Lang.T("電量", "Battery"), battery, 36);
@@ -5787,7 +6697,12 @@ namespace MXMasterWin
                 int steps = (int)Math.Round(((int)dpi.Value - s.DpiMin) / (double)s.DpiStep);
                 int value = Math.Max(s.DpiMin, Math.Min(s.DpiMax, s.DpiMin + steps * s.DpiStep));
                 RunWrite("DPI " + value, delegate { return hidpp.SetDpi(value); },
-                    delegate { saved.Dpi = value; });
+                    delegate
+                    {
+                        saved.Dpi = value;
+                        Action handler = DpiApplied;
+                        if (handler != null) handler();
+                    });
             };
 
             AddSection(Lang.T("滾輪", "Wheel"), 180);
@@ -5835,45 +6750,20 @@ namespace MXMasterWin
                     delegate { saved.WheelInvert = inverted ? 1 : 0; });
             };
 
-            AddSection(Lang.T("觸覺回饋強度", "Haptic feedback strength"), 321);
-            haptic.Minimum = 0;
-            haptic.Maximum = 100;
-            haptic.Increment = 5;
-            haptic.Location = new Point(S(14), S(347));
-            haptic.Size = new Size(S(270), S(30));
-            haptic.ValueChanged += delegate { hapticValue.Text = haptic.Value > 0 ? haptic.Value.ToString() : Lang.T("關閉", "Off"); };
-            Controls.Add(haptic);
-            AddValueLabel(hapticValue, 347);
-            hapticValue.Text = Lang.T("關閉", "Off");
-            Controls.Add(new Label
-            {
-                Text = Lang.T("拉到最左邊為關閉，最大 100", "Drag fully left to turn off; maximum 100"),
-                AutoSize = true,
-                ForeColor = Theme.Muted,
-                Font = new Font(Theme.UiFont, 8.5F),
-                Location = new Point(S(20), S(376))
-            });
-            hapticApply = AddApply(347);
-            hapticApply.Click += delegate
-            {
-                int level = (int)haptic.Value;
-                RunWrite(Lang.T("觸覺回饋 ", "Haptic feedback ") + level, delegate { return hidpp.SetHaptic(level); },
-                    delegate { saved.Haptic = level; });
-            };
-
+            // Haptic strength moved to its own page with the haptic moments.
             result.AutoSize = false;
             result.ForeColor = Theme.Muted;
-            result.Location = new Point(S(20), S(402));
+            result.Location = new Point(S(20), S(326));
             result.Size = new Size(S(440), S(40));
             Controls.Add(result);
 
             reload = Theme.CreateButton(Lang.T("重新讀取", "Reload"), false);
-            reload.Location = new Point(S(250), S(450));
+            reload.Location = new Point(S(250), S(374));
             reload.Size = new Size(S(100), S(34));
             reload.Click += delegate { Reload(); };
             Controls.Add(reload);
             close = Theme.CreateButton(Lang.T("關閉", "Close"), false);
-            close.Location = new Point(S(360), S(450));
+            close.Location = new Point(S(360), S(374));
             close.Size = new Size(S(100), S(34));
             close.Click += delegate { Close(); };
             Controls.Add(close);
@@ -5928,7 +6818,7 @@ namespace MXMasterWin
 
         private void SetBusy(string message)
         {
-            dpiApply.Enabled = shiftApply.Enabled = directionApply.Enabled = hapticApply.Enabled = reload.Enabled = false;
+            dpiApply.Enabled = shiftApply.Enabled = directionApply.Enabled = reload.Enabled = false;
             result.Text = message;
         }
 
@@ -5950,7 +6840,7 @@ namespace MXMasterWin
             BackColor = Theme.Card;
             close.Visible = false;
             result.Size = new Size(S(330), S(40));
-            reload.Location = new Point(S(360), S(404));
+            reload.Location = new Point(S(360), S(328));
             ClientSize = new Size(S(480), S(444));
             Location = location;
             host.Controls.Add(this);
@@ -6003,7 +6893,7 @@ namespace MXMasterWin
             {
                 connection.Text = battery.Text = firmware.Text = "—";
                 dpiRange.Text = "";
-                dpi.Enabled = wheelMode.Enabled = threshold.Enabled = neverDisengage.Enabled = wheelDirection.Enabled = haptic.Enabled = false;
+                dpi.Enabled = wheelMode.Enabled = threshold.Enabled = neverDisengage.Enabled = wheelDirection.Enabled = false;
                 return;
             }
             log(s.Raw);
@@ -6019,7 +6909,8 @@ namespace MXMasterWin
                 dpi.Minimum = s.DpiMin;
                 dpi.Maximum = s.DpiMax;
                 dpi.Increment = s.DpiStep;
-                dpi.Value = Math.Max(s.DpiMin, Math.Min(s.DpiMax, s.Dpi));
+                int normal = NormalDpi != null ? NormalDpi() : 0;
+                dpi.Value = Math.Max(s.DpiMin, Math.Min(s.DpiMax, normal > 0 ? normal : s.Dpi));
                 dpiRange.Text = Lang.T("範圍 ", "Range ") + s.DpiMin + "–" + s.DpiMax + Lang.T("，預設 ", ", default ") + s.DpiDefault;
             }
             else if (s.DpiFeature == 0x2201)
@@ -6043,10 +6934,6 @@ namespace MXMasterWin
             wheelDirection.Enabled = directionApply.Enabled = s.WheelInvertPresent;
             if (s.WheelInvertPresent)
                 wheelDirection.SelectedIndex = s.WheelInverted ? 1 : 0;
-
-            haptic.Enabled = hapticApply.Enabled = s.HapticPresent;
-            if (s.HapticPresent)
-                haptic.Value = Math.Max(0, Math.Min(100, s.HapticLevel));
         }
     }
 
